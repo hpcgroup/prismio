@@ -1,0 +1,9 @@
+/.vscode
+/__pycache__
+/log_dirs
+/visualization
+/external
+reporter*
+scripts.py
+*.pdf
+*.html
