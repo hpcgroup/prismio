@@ -3,6 +3,7 @@
 /log_dirs
 /visualization
 /external
+/prismio/__pycache__
 reporter*
 scripts.py
 *.pdf

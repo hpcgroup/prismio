@@ -1,6 +1,9 @@
 import sys
+import os
+from pathlib import Path
 import numpy as np
 import pandas as pd
+sys.path.insert(1, str(Path(__file__).parent.parent.absolute()) + '/external')
 from creader_wrapper import RecorderReader
 
 class IOFrame:
