@@ -7,23 +7,22 @@ sys.path.insert(1, str(Path(__file__).parent.parent.absolute()) + '/external')
 from creader_wrapper import RecorderReader
 
 class IOFrame:
-    def __init__(self, df, log_dir, np, fd_to_file_name, func_id_to_name):
+    def __init__(self, df, log_dir, np, fd_to_file_name):
         self.df = df
         self.log_dir = log_dir
         self.np = np
         self.fd_to_file_name = fd_to_file_name
-        self.func_id_to_name = func_id_to_name
 
     @staticmethod
     def from_recorder(log_dir):
-        from recorder_reader import RecorderDataReader
-        return RecorderDataReader(log_dir).read()
+        from readers.recorder_reader import RecorderReader
+        return RecorderReader(log_dir).read()
 
     def filter(self, my_lambda): 
         df = self.df[self.df.apply(my_lambda, axis = 1)]
         df = df.reset_index()
         df = df.drop('index', axis=1)
-        return IOFrame(df, self.log_dir, self.np, self.fd_to_file_name, self.func_id_to_name)
+        return IOFrame(df, self.log_dir, self.np, self.fd_to_file_name)
     
     # only meaningful for column in 'rank', 'func_id', 'func_name', 'file_name'
     def get_aggregated_count_by_column(self, column):
@@ -46,31 +45,14 @@ class IOFrame:
     def get_record_count_each_rank(self):
         return list(self.df.groupby(['rank']).count().iloc[:,0])
     
-    def get_nonzero_function_count(self):
+    def get_function_count(self):
         return dict(self.df.groupby(['func_name']).count().iloc[:,0])
 
-    def get_function_count(self):
-        count = [0] * 222
-        nonzero_function_count = self.get_nonzero_function_count()
-        for func_id in nonzero_function_count:
-            count[func_id] += nonzero_function_count[func_id]
-        return count
-
-    def get_nonzero_function_count_each_rank(self):
+    def get_function_count_each_rank(self):
         counts = []
         for rank in range(self.np):
             df = self.df[self.df['rank'] == rank]
             counts.append(dict(df.groupby(['func_name']).count().iloc[:,0]))
-        return counts
-
-    def get_function_count_each_rank(self):
-        counts = []
-        nonzero_counts = self.get_nonzero_function_count_each_rank()
-        for nonzero_count in nonzero_counts:
-            count = [0] * 222
-            for func_id in nonzero_count:
-                count[func_id] += nonzero_count[func_id]
-            counts.append(count)
         return counts
 
     def get_file_access_count(self):
@@ -108,7 +90,7 @@ class IOFrame:
             files.append(list(df.file_name.unique()))
         return files
 
-    def get_total_file_count(self):
+    def get_total_num_files(self):
         files = self.df.file_name.unique()
         n = len(files)
         if None in files:
@@ -123,7 +105,7 @@ class IOFrame:
             n = n - 1
         return n
 
-    def get_total_file_count_each_rank(self):
+    def get_total_num_files_each_rank(self):
         count = []
         for rank in range(self.np):
             df = self.df[self.df['rank'] == rank]
@@ -145,34 +127,17 @@ class IOFrame:
     def get_total_function_time(self):
         return self.df['telapsed'].sum()
 
-    def get_nonzero_function_time(self):
-        return dict(self.df.groupby(['func_name'])['telapsed'].sum())
-
     def get_function_time(self):
-        time = [0] * 222
-        nonzero_function_time = self.get_nonzero_function_time()
-        for func_id in nonzero_function_time:
-            time[func_id] += nonzero_function_time[func_id]
-        return time
+        return dict(self.df.groupby(['func_name'])['telapsed'].sum())s
     
     def get_total_function_time_each_rank(self):
         return list(self.df.groupby(['rank'])['telapsed'].sum())
 
-    def get_nonzero_function_time_each_rank(self):
+    def get_function_time_each_rank(self):
         times = []
         for rank in range(self.np):
             df = self.df[self.df['rank'] == rank]
             times.append(dict(df.groupby(['func_name'])['telapsed'].sum()))
-        return times
-    
-    def get_function_time_each_rank(self):
-        times = []
-        nonzero_times = self.get_nonzero_function_time_each_rank()
-        for nonzero_time in nonzero_times:
-            time = [0] * 222
-            for func_id in nonzero_time:
-                time[func_id] += nonzero_time[func_id]
-            times.append(time)
         return times
 
     def get_function_layers(self):

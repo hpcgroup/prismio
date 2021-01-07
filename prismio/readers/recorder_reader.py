@@ -4,7 +4,7 @@ import pandas as pd
 from creader_wrapper import RecorderReader
 from io_frame import IOFrame
 
-class RecorderDataReader:
+class RecorderReader:
     
     def ignore_funcs(self, func):
         ignore = ["MPI", "H5", "writev"]

@@ -4,6 +4,7 @@
 /visualization
 /external
 /prismio/__pycache__
+prismio/readers/__pycache__/
 reporter*
 scripts.py
 *.pdf
