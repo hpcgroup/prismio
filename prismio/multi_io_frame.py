@@ -1,3 +1,8 @@
+# Copyright 2020-2021 Parallel Software and Systems Group, University of
+# Maryland. See the top-level LICENSE file for details.
+#
+# SPDX-License-Identifier: MIT
+
 import sys
 import numpy as np
 import pandas as pd

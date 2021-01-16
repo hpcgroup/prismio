@@ -1,11 +1,18 @@
+# Copyright 2020-2021 Parallel Software and Systems Group, University of
+# Maryland. See the top-level LICENSE file for details.
+#
+# SPDX-License-Identifier: MIT
+
 import sys
-from pathlib import Path
 import numpy as np
 import pandas as pd
+from io_frame import IOFrame
+
+from pathlib import Path
 sys.path.insert(1, str(Path(__file__).parent.parent.parent.absolute()) + '/external/tools/reporter')
 sys.path.insert(1, str(Path(__file__).parent.parent.absolute()))
 import creader_wrapper
-from io_frame import IOFrame
+
 
 class RecorderReader:
     def ignore_funcs(self, func):

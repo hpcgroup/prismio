@@ -1,10 +1,17 @@
+# Copyright 2020-2021 Parallel Software and Systems Group, University of
+# Maryland. See the top-level LICENSE file for details.
+#
+# SPDX-License-Identifier: MIT
+
 import sys
 import os
-from pathlib import Path
 import numpy as np
 import pandas as pd
+
+from pathlib import Path
 sys.path.insert(1, str(Path(__file__).parent.parent.absolute()) + '/external/tools/reporter')
 import creader_wrapper
+
 
 class IOFrame:
     def __init__(self, df, log_dir, np, fd_to_file_name):
