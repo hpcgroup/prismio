@@ -1,0 +1,1 @@
+PrismIO is a Python-based tool that can take in performance data profiled by various apps and struct them to Pandas dataframes. It is intended to provide flexible and convinient api for user to analyze multiple runs.
