@@ -1,0 +1,13 @@
+/.vscode
+/__pycache__
+/log_dirs
+/visualization
+/external
+/prismio/__pycache__
+prismio/readers/__pycache__/
+reporter*
+script.py
+*.pdf
+*.html
+.DS_Store
+
