@@ -29,12 +29,9 @@ class RecorderReader:
     def sort_records(self):
         records = []
         for rank in range(self.reader.GM.total_ranks):
-            for i in range(self.reader.LMs[rank].total_records):
-                record = self.reader.records[rank][i]
+            for record in self.reader.records[rank]:
                 record.rank = rank
                 records.append( record )
-                # if not self.ignore_funcs(self.func_id_to_name[record.func_id]):
-                #     records.append( record )
         records = sorted(records, key=lambda x: x.tstart)
         return records
 
