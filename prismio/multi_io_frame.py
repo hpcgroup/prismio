@@ -30,7 +30,7 @@ class MultiIOFrame():
         """
         self.io_frames = io_frames
         self.set_log_dirs()
-        self.np = io_frames[0].np
+        self.num_processes = io_frames[0].num_processes
 
     def set_log_dirs(self):
         """
