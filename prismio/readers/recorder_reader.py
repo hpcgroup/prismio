@@ -15,7 +15,7 @@ recorder tracing files.
 import sys
 import numpy as np
 import pandas as pd
-from io_frame import IOFrame
+from prismio.io_frame import IOFrame
 
 from pathlib import Path
 sys.path.insert(1, str(Path(__file__).parent.parent.parent.absolute()) + '/external/tools/reporter')
@@ -55,7 +55,8 @@ class RecorderReader:
         """
         records = []
         for rank in range(self.reader.GM.total_ranks):
-            for record in self.reader.records[rank]:
+            for i in range(self.reader.LMs[rank].total_records):
+                record = self.reader.records[rank][i]
                 record.rank = rank
                 records.append( record )
         records = sorted(records, key=lambda x: x.tstart)
