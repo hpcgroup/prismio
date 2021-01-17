@@ -44,5 +44,5 @@ class MultiIOFrame():
 
         """
         self.log_dirs = []
-        for rdf in self.io_frames:
-            self.log_dirs.append(rdf.log_dir)
+        for io_frame in self.io_frames:
+            self.log_dirs.append(io_frame.log_dir)
