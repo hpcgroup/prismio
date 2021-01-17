@@ -61,11 +61,10 @@ class RecorderReader:
         records = sorted(records, key=lambda x: x.tstart)
         return records
 
-    def get_fd_to_file_name(self, records, num_processes, func_id_to_name):
+    def find_file_names(self, records, num_processes, func_id_to_name):
         """
         Figure out the file name each record accesses. Assign that to each record.
         So after this function, all records should have the correct file name.
-        During this procedure, generate a map from file descriptor to file name.
 
         Args:
             records (list of records): sorted list of records of a run.
@@ -73,7 +72,7 @@ class RecorderReader:
             func_id_to_name (list): map from function id to function name. Dependent on Recorder.
 
         Return:
-            A list that maps file descriptors to file names.
+            None.
 
         """
         fd_to_file_names = [{0: "stdin", 1: "stdout", 2: "stderr"}] * num_processes
@@ -113,11 +112,10 @@ class RecorderReader:
                     record.file_name = file_name
             else:
                 record.file_name = None
-        return fd_to_file_names
         
     def read(self):
         """
-        Call sort_records and then get_fd_to_file_name. After it has all information needed,
+        Call sort_records and then find_file_names. After it has all information needed,
         it creates the dataframe row by row. Then create an IOFrame with this dataframe. 
 
         Args:
@@ -130,7 +128,7 @@ class RecorderReader:
         df = pd.DataFrame(data=[], columns = ['rank', 'func_id', 'func_name', 'tstart', 'tend', 'telapsed', 'argc', 'argv', 'file_name', 'res'])
         num_processes = self.reader.GM.total_ranks
         records = self.sort_records()
-        fd_to_file_name = self.get_fd_to_file_name(records, num_processes, self.reader.funcs)
+        self.find_file_names(records, num_processes, self.reader.funcs)
         for index, record in enumerate(records):
             rank = record.rank
             func_id = record.func_id
@@ -144,4 +142,4 @@ class RecorderReader:
             res = record.res
             df.loc[index] = [rank, func_id, func_name, tstart, tend, telapsed, argc, argv, file_name, res]    
         
-        return IOFrame(df, self.log_dir, num_processes, fd_to_file_name)
+        return IOFrame(df, self.log_dir, num_processes)

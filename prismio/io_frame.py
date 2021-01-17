@@ -28,7 +28,7 @@ class IOFrame:
     the files functions access to, etc. It also provides flexible api 
     functions for user to do analysis.
     """
-    def __init__(self, df, log_dir, num_processes, fd_to_file_name):
+    def __init__(self, df, log_dir, num_processes):
         """
         Args:
             df (DataFrame): the dataframe this IOFrame should have.
@@ -43,7 +43,6 @@ class IOFrame:
         self.df = df
         self.log_dir = log_dir
         self.num_processes = num_processes
-        self.fd_to_file_name = fd_to_file_name
 
     @staticmethod
     def from_recorder(log_dir):
