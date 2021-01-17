@@ -3,6 +3,15 @@
 #
 # SPDX-License-Identifier: MIT
 
+"""
+The prismio.reader.recorder_reader module provides functions for processing tracing data
+from Recorder, for example, sorting records, finding the file name each record operates.
+With data processing, it organize the data to a dataframe, and create the IOFrame for
+recorder tracing files.
+
+"""
+
+
 import sys
 import numpy as np
 import pandas as pd
@@ -15,18 +24,35 @@ import creader_wrapper
 
 
 class RecorderReader:
-    def ignore_funcs(self, func):
-        ignore = ["MPI", "H5", "writev"]
-        for f in ignore:
-            if f in func:
-                return True
-        return False
-
+    """
+    The reader class for recorder data. It can read in recorder trace files, 
+    preprocess the data, and create a corresponding IOFrame.
+    """
     def __init__(self, log_dir):
+        """
+        Use the Recorder creader_wrapper to read in tracing data.
+
+        Args:
+            log_dir (string): path to the trace files directory of Recorder the user wants to analyze.
+
+        Return:
+            None.
+
+        """
         self.log_dir = log_dir
         self.reader = creader_wrapper.RecorderReader(log_dir)
     
     def sort_records(self):
+        """
+        Assign the rank to each record. Sort all records in ascending start time order.
+
+        Args:
+            None.
+
+        Return:
+            A list containing sorted records.
+
+        """
         records = []
         for rank in range(self.reader.GM.total_ranks):
             for record in self.reader.records[rank]:
@@ -36,6 +62,20 @@ class RecorderReader:
         return records
 
     def get_fd_to_file_name(self, records, np, func_id_to_name):
+        """
+        Figure out the file name each record accesses. Assign that to each record.
+        So after this function, all records should have the correct file name.
+        During this procedure, generate a map from file descriptor to file name.
+
+        Args:
+            records (list of records): sorted list of records of a run.
+            np: (integer): the number of processes of the run.
+            func_id_to_name (list): map from function id to function name. Dependent on Recorder.
+
+        Return:
+            A list that maps file descriptors to file names.
+
+        """
         fd_to_file_names = [{0: "stdin", 1: "stdout", 2: "stderr"}] * np
         
         for i, record in enumerate(records):
@@ -76,6 +116,17 @@ class RecorderReader:
         return fd_to_file_names
         
     def read(self):
+        """
+        Call sort_records and then get_fd_to_file_name. After it has all information needed,
+        it creates the dataframe row by row. Then create an IOFrame with this dataframe. 
+
+        Args:
+            None.
+
+        Return:
+            An IOFrame created by trace files of recorder specified by the log_dir of this RecorderReader.
+
+        """
         df = pd.DataFrame(data=[], columns = ['rank', 'func_id', 'func_name', 'tstart', 'tend', 'telapsed', 'argc', 'argv', 'file_name', 'res'])
         np = self.reader.GM.total_ranks
         records = self.sort_records()
