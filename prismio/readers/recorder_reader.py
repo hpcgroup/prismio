@@ -55,8 +55,8 @@ class RecorderReader:
         """
         records = []
         for rank in range(self.reader.GM.total_ranks):
-            for i in range(self.reader.LMs[rank].total_records):
-                record = self.reader.records[rank][i]
+            for record_index in range(self.reader.LMs[rank].total_records):
+                record = self.reader.records[rank][record_index]
                 record.rank = rank
                 records.append( record )
         records = sorted(records, key=lambda x: x.tstart)
@@ -78,7 +78,7 @@ class RecorderReader:
         """
         fd_to_file_names = [{0: "stdin", 1: "stdout", 2: "stderr"}] * num_processes
         
-        for i, record in enumerate(records):
+        for record in records:
             rank = record.rank
             argv = record.args_to_strs()
             fd_to_file_name = fd_to_file_names[rank]
