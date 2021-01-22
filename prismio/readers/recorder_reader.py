@@ -36,7 +36,7 @@ class RecorderReader:
             log_dir (string): path to the trace files directory of Recorder the user wants to analyze.
 
         Return:
-            A list containing sorted records.
+            None.
 
         """
         self.log_dir = log_dir
