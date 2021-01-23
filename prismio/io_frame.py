@@ -72,7 +72,7 @@ class IOFrame:
         df = self.df[self.df.apply(my_lambda, axis = 1)]
         df = df.reset_index()
         df = df.drop('index', axis=1)
-        return IOFrame(df, self.log_dir, self.fd_to_file_name)
+        return IOFrame(df, self.log_dir)
 
     def groupby_aggregate(self, groupby_columns, agg_function):
         """

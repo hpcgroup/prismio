@@ -11,6 +11,7 @@ and comparing multiple runs.
 
 
 import sys
+import glob
 import numpy as np
 import pandas as pd
 from io_frame import IOFrame
@@ -19,29 +20,22 @@ from io_frame import IOFrame
 class MultiIOFrame():
     io_frames = []
     
-    def __init__(self, io_frames):
+    def __init__(self, directories):
         """
         Args:
-            io_frames (list of io_frame objects): io_frames for all runs the user wants to compare.
+            directories (list or str): a list of tracing directories or a root directory that contains tracing directories.
 
         Return:
             None.
 
         """
-        self.io_frames = io_frames
-        self.set_log_dirs()
+        if type(directories) is not list and type(directories) is not str:
+            sys.stderr.write("error: please pass in a root directory or a list of tracing directories\n")
+            return
+        
+        if type(directories) is str:
+            directories = glob.glob(directories + "/*")
 
-    def set_log_dirs(self):
-        """
-        Put log_dirs of all io_frames to a list.
-
-        Args:
-            None.
-
-        Return:
-            None.
-
-        """
-        self.log_dirs = []
-        for io_frame in self.io_frames:
-            self.log_dirs.append(io_frame.log_dir)
+        self.io_frames = {}
+        for directory in directories:
+            self.io_frames[directory] = IOFrame.from_recorder(directory)
