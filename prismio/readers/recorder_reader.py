@@ -143,4 +143,4 @@ class RecorderReader:
             res = record.res
             df.loc[index] = [rank, func_id, func_name, tstart, tend, telapsed, argc, argv, file_name, res]    
         
-        return IOFrame(df, self.log_dir, num_processes)
+        return IOFrame(df, self.log_dir)
