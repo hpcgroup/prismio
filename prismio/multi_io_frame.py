@@ -31,7 +31,7 @@ class MultiIOFrame():
         """
         if type(directories) is not list and type(directories) is not str:
             sys.stderr.write("error: please pass in a root directory or a list of tracing directories\n")
-            return
+            return(-1)
         
         if type(directories) is str:
             directories = glob.glob(directories + "/*")
