@@ -28,19 +28,16 @@ class IOFrame:
     the files functions access to, etc. It also provides flexible api 
     functions for user to do analysis.
     """
-    def __init__(self, df, log_dir):
+    def __init__(self, df):
         """
         Args:
             df (DataFrame): the dataframe this IOFrame should have.
-            log_dir (string): path to the trace files directory corresponding to this IOFrame.
-            fd_to_file_name (list): map from file descriptor to file name for this IOFrame.
 
         Return:
             None.
 
         """
         self.df = df
-        self.log_dir = log_dir
 
     @staticmethod
     def from_recorder(log_dir):
@@ -72,7 +69,7 @@ class IOFrame:
         df = self.df[self.df.apply(my_lambda, axis = 1)]
         df = df.reset_index()
         df = df.drop('index', axis=1)
-        return IOFrame(df, self.log_dir)
+        return IOFrame(df)
 
     def groupby_aggregate(self, groupby_columns, agg_function):
         """

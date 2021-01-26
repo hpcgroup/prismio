@@ -150,4 +150,4 @@ class RecorderReader:
                 csv_writer.writerow([rank, func_id, func_name, tstart, tend, telapsed, argc, argv, file_name, res])
         df = pd.read_csv('tmp.csv')
         os.remove('tmp.csv')
-        return IOFrame(df, self.log_dir)
+        return IOFrame(df)
