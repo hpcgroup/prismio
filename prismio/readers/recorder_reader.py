@@ -135,8 +135,7 @@ class RecorderReader:
         with file:
             csv_writer = writer(file)
             csv_writer.writerow(['rank', 'func_id', 'func_name', 'tstart', 'tend', 'telapsed', 'argc', 'argv', 'file_name', 'res'])
-            for index, record in enumerate(records):
-                print(index)
+            for record in records:
                 rank = record.rank
                 func_id = record.func_id
                 func_name = self.reader.funcs[func_id]
