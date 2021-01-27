@@ -147,6 +147,6 @@ class RecorderReader:
                 file_name = record.file_name
                 res = record.res
                 csv_writer.writerow([rank, func_id, func_name, tstart, tend, telapsed, argc, argv, file_name, res])
-        df = pd.read_csv('tmp.csv')
+        dataframe = pd.read_csv('tmp.csv')
         os.remove('tmp.csv')
-        return IOFrame(df)
+        return IOFrame(dataframe)

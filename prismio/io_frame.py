@@ -28,16 +28,16 @@ class IOFrame:
     the files functions access to, etc. It also provides flexible api 
     functions for user to do analysis.
     """
-    def __init__(self, df):
+    def __init__(self, dataframe):
         """
         Args:
-            df (DataFrame): the dataframe this IOFrame should have.
+            dataframe (DataFrame): the dataframe this IOFrame should have.
 
         Return:
             None.
 
         """
-        self.df = df
+        self.dataframe = dataframe
 
     @staticmethod
     def from_recorder(log_dir):
@@ -66,10 +66,10 @@ class IOFrame:
             A new IOFrame object with a new filtered dataframe.
 
         """
-        df = self.df[self.df.apply(my_lambda, axis = 1)]
-        df = df.reset_index()
-        df = df.drop('index', axis=1)
-        return IOFrame(df)
+        dataframe = self.dataframe[self.dataframe.apply(my_lambda, axis = 1)]
+        dataframe = dataframe.reset_index()
+        dataframe = dataframe.drop('index', axis=1)
+        return IOFrame(dataframe)
 
     def groupby_aggregate(self, groupby_columns, agg_function):
         """
@@ -83,7 +83,7 @@ class IOFrame:
             A dataframe after groupby and aggregate operations on the dataframe of this IOFrame.
 
         """
-        groupby_obj = self.df.groupby(groupby_columns)
-        agg_df = groupby_obj.agg(agg_function)
-        return agg_df
+        groupby_obj = self.dataframe.groupby(groupby_columns)
+        agg_dataframe = groupby_obj.agg(agg_function)
+        return agg_dataframe
     

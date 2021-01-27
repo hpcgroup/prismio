@@ -18,7 +18,6 @@ from io_frame import IOFrame
 
 
 class MultiIOFrame():
-    io_frames = []
     
     def __init__(self, directories):
         """
@@ -36,6 +35,6 @@ class MultiIOFrame():
         if type(directories) is str:
             directories = glob.glob(directories + "/*")
 
-        self.io_frames = {}
+        self.ioframes = {}
         for directory in directories:
-            self.io_frames[directory] = IOFrame.from_recorder(directory)
+            self.ioframes[directory] = IOFrame.from_recorder(directory)
