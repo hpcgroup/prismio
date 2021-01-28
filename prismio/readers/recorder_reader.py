@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 from prismio.io_frame import IOFrame
 import recorder_viz
+import time
 
 class RecorderReader:
     """
@@ -126,22 +127,20 @@ class RecorderReader:
         num_processes = self.reader.GM.total_ranks
         records = self.sort_records()
         self.find_file_names(records, num_processes, self.reader.funcs)
-        file = open('tmp.csv', 'w+', newline='')
-        with file:
-            csv_writer = writer(file)
-            csv_writer.writerow(['rank', 'func_id', 'func_name', 'tstart', 'tend', 'telapsed', 'argc', 'argv', 'file_name', 'res'])
-            for record in records:
-                rank = record.rank
-                func_id = record.func_id
-                func_name = self.reader.funcs[func_id]
-                tstart = record.tstart
-                tend = record.tend
-                telapsed = tend - tstart
-                argc = record.arg_count
-                argv = record.args_to_strs()
-                file_name = record.file_name
-                res = record.res
-                csv_writer.writerow([rank, func_id, func_name, tstart, tend, telapsed, argc, argv, file_name, res])
-        dataframe = pd.read_csv('tmp.csv')
-        os.remove('tmp.csv')
+
+        dic = {}
+        columns = ['rank', 'func_id', 'func_name', 'tstart', 'tend', 'telapsed', 'argc', 'argv', 'file_name', 'res']
+        for index, record in enumerate(records):
+            rank = record.rank
+            func_id = record.func_id
+            func_name = self.reader.funcs[func_id]
+            tstart = record.tstart
+            tend = record.tend
+            telapsed = tend - tstart
+            argc = record.arg_count
+            argv = record.args_to_strs()
+            file_name = record.file_name
+            res = record.res
+            dic[index] = [rank, func_id, func_name, tstart, tend, telapsed, argc, argv, file_name, res]
+        dataframe = pd.DataFrame.from_dict(dic, orient='index', columns=columns)
         return IOFrame(dataframe)
