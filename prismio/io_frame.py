@@ -15,8 +15,6 @@ import os
 import numpy as np
 import pandas as pd
 
-from pathlib import Path
-
 class IOFrame:
     """
     Main class of the prism application. It holds I/O performance data 
