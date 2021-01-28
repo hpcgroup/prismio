@@ -14,8 +14,7 @@ import sys
 import glob
 import numpy as np
 import pandas as pd
-from io_frame import IOFrame
-
+from prismio.io_frame import IOFrame
 
 class MultiIOFrame():
     

@@ -18,12 +18,7 @@ from csv import writer
 import numpy as np
 import pandas as pd
 from prismio.io_frame import IOFrame
-
-from pathlib import Path
-sys.path.insert(1, str(Path(__file__).parent.parent.parent.absolute()) + '/external/tools/reporter')
-sys.path.insert(1, str(Path(__file__).parent.parent.absolute()))
-import creader_wrapper
-
+import recorder_viz
 
 class RecorderReader:
     """
@@ -42,7 +37,7 @@ class RecorderReader:
 
         """
         self.log_dir = log_dir
-        self.reader = creader_wrapper.RecorderReader(log_dir)
+        self.reader = recorder_viz.RecorderReader(log_dir)
     
     def sort_records(self):
         """

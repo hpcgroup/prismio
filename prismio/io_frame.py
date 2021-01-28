@@ -16,9 +16,6 @@ import numpy as np
 import pandas as pd
 
 from pathlib import Path
-sys.path.insert(1, str(Path(__file__).parent.parent.absolute()) + '/external/tools/reporter')
-import creader_wrapper
-
 
 class IOFrame:
     """
@@ -52,7 +49,7 @@ class IOFrame:
             A IOFrame object corresponding to this trace files directory.
 
         """
-        from readers.recorder_reader import RecorderReader
+        from prismio.readers.recorder_reader import RecorderReader
         return RecorderReader(log_dir).read()
 
     def filter(self, my_lambda): 
