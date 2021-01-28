@@ -78,12 +78,12 @@ class RecorderReader:
         
         for record in records:
             rank = record.rank
-            argv = record.args_to_strs()
+            function_args = record.args_to_strs()
             fd_to_file_name = fd_to_file_names[rank]
             func_name = func_id_to_name[record.func_id]
             if 'fdopen' in func_name:
                 fd = record.res
-                old_fd = int(argv[0])
+                old_fd = int(function_args[0])
                 if old_fd not in fd_to_file_name:
                     record.file_name = '__unknown__'
                 else:
@@ -92,18 +92,18 @@ class RecorderReader:
                     record.file_name = file_name
             elif 'fopen' in func_name or 'open' in func_name:
                 fd = record.res
-                file_name = argv[0]
+                file_name = function_args[0]
                 fd_to_file_name[fd] = file_name
                 record.file_name = file_name
             elif 'fwrite' in func_name or 'fread' in func_name:
-                fd = int(argv[3])
+                fd = int(function_args[3])
                 if fd not in fd_to_file_name:
                     record.file_name = '__unknown__'
                 else: 
                     file_name = fd_to_file_name[fd]
                     record.file_name = file_name
             elif 'seek' in func_name or 'close' in func_name or 'sync' in func_name or 'writev' in func_name or 'readv' in func_name or 'pwrite' in func_name or 'pread' in func_name or 'write' in func_name or 'read' in func_name or 'fprintf' in func_name:
-                fd = int(argv[0])
+                fd = int(function_args[0])
                 if fd not in fd_to_file_name:
                     record.file_name = '__unknown__'
                 else: 
@@ -129,7 +129,7 @@ class RecorderReader:
         self.find_file_names(records, num_processes, self.reader.funcs)
 
         dic = {}
-        columns = ['rank', 'func_id', 'func_name', 'tstart', 'tend', 'telapsed', 'argc', 'argv', 'file_name', 'res']
+        columns = ['rank', 'fid', 'name', 'tstart', 'tend', 'time', 'arg_counts', 'args', 'file', 'return_value']
         for index, record in enumerate(records):
             rank = record.rank
             func_id = record.func_id
