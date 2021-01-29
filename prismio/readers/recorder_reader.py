@@ -40,77 +40,57 @@ class RecorderReader:
         self.log_dir = log_dir
         self.reader = recorder_viz.RecorderReader(log_dir)
     
-    def sort_records(self):
-        """
-        Assign the rank to each record. Sort all records in ascending start time order.
-
-        Args:
-            None.
-
-        Return:
-            A list containing sorted records.
-
-        """
-        records = []
-        for rank in range(self.reader.GM.total_ranks):
-            for record_index in range(self.reader.LMs[rank].total_records):
-                record = self.reader.records[rank][record_index]
-                record.rank = rank
-                records.append( record )
-        records = sorted(records, key=lambda x: x.tstart)
-        return records
-
-    def find_file_names(self, records, num_processes, func_id_to_name):
+    def find_file_names(self, dataframe):
         """
         Figure out the file name each record accesses. Assign that to each record.
         So after this function, all records should have the correct file name.
 
         Args:
-            records (list of records): sorted list of records of a run.
-            num_processes: (integer): the number of processes of the run.
-            func_id_to_name (list): map from function id to function name. Dependent on Recorder.
+            dataframe (DataFrame): dataframe sorted by rank then tstart.
 
         Return:
             None.
 
         """
-        fd_to_file_names = [{0: "stdin", 1: "stdout", 2: "stderr"}] * num_processes
+        fd_to_file_names = [{0: "stdin", 1: "stdout", 2: "stderr"}] * self.reader.GM.total_ranks
+        filenames = []
         
-        for record in records:
-            rank = record.rank
-            function_args = record.args_to_strs()
+        for index, row in dataframe.iterrows():
+            rank = row['rank']
+            function_args = row['args']
             fd_to_file_name = fd_to_file_names[rank]
-            func_name = func_id_to_name[record.func_id]
+            func_name = row['name']
             if 'fdopen' in func_name:
-                fd = record.res
+                fd = row['return_value']
                 old_fd = int(function_args[0])
-                if old_fd not in fd_to_file_name:
-                    record.file_name = '__unknown__'
+                if old_fd not in fd_to_file_name: 
+                    filenames.append('__unknown__')
                 else:
                     file_name = fd_to_file_name[old_fd]
                     fd_to_file_name[fd] = file_name
-                    record.file_name = file_name
+                    filenames.append(file_name)
             elif 'fopen' in func_name or 'open' in func_name:
-                fd = record.res
+                fd = row['return_value']
                 file_name = function_args[0]
                 fd_to_file_name[fd] = file_name
-                record.file_name = file_name
+                filenames.append(file_name)
             elif 'fwrite' in func_name or 'fread' in func_name:
                 fd = int(function_args[3])
                 if fd not in fd_to_file_name:
-                    record.file_name = '__unknown__'
+                    filenames.append('__unknown__')
                 else: 
                     file_name = fd_to_file_name[fd]
-                    record.file_name = file_name
+                    filenames.append(file_name)
             elif 'seek' in func_name or 'close' in func_name or 'sync' in func_name or 'writev' in func_name or 'readv' in func_name or 'pwrite' in func_name or 'pread' in func_name or 'write' in func_name or 'read' in func_name or 'fprintf' in func_name:
                 fd = int(function_args[0])
                 if fd not in fd_to_file_name:
-                    record.file_name = '__unknown__'
+                    filenames.append('__unknown__')
                 else: 
                     file_name = fd_to_file_name[fd]
-                    record.file_name = file_name
+                    filenames.append(file_name)
             else:
-                record.file_name = None
+                filenames.append(None)
+        return filenames
         
     def read(self):
         """
@@ -124,23 +104,33 @@ class RecorderReader:
             An IOFrame created by trace files of recorder specified by the log_dir of this RecorderReader.
 
         """
-        num_processes = self.reader.GM.total_ranks
-        records = self.sort_records()
-        self.find_file_names(records, num_processes, self.reader.funcs)
+        dic = {
+            'rank': [], 
+            'fid': [], 
+            'name': [], 
+            'tstart': [],
+            'tend': [],
+            'time': [], 
+            'arg_counts': [],
+            'args': [],
+            'return_value': []
+        }
+        for rank in range(self.reader.GM.total_ranks):
+            for record_index in range(self.reader.LMs[rank].total_records):
+                record = self.reader.records[rank][record_index]
+                dic['rank'].append(rank)
+                dic['fid'].append(record.func_id)
+                dic['name'].append(self.reader.funcs[record.func_id])
+                dic['tstart'].append(record.tstart)
+                dic['tend'].append(record.tend)
+                dic['time'].append(record.tend - record.tstart)
+                dic['arg_counts'].append(record.arg_count)
+                dic['args'].append(record.args_to_strs())
+                dic['return_value'].append(record.res)
 
-        dic = {}
-        columns = ['rank', 'fid', 'name', 'tstart', 'tend', 'time', 'arg_counts', 'args', 'file', 'return_value']
-        for index, record in enumerate(records):
-            rank = record.rank
-            func_id = record.func_id
-            func_name = self.reader.funcs[func_id]
-            tstart = record.tstart
-            tend = record.tend
-            telapsed = tend - tstart
-            argc = record.arg_count
-            argv = record.args_to_strs()
-            file_name = record.file_name
-            res = record.res
-            dic[index] = [rank, func_id, func_name, tstart, tend, telapsed, argc, argv, file_name, res]
-        dataframe = pd.DataFrame.from_dict(dic, orient='index', columns=columns)
+        dataframe = pd.DataFrame.from_dict(dic)
+        dataframe = dataframe.sort_values(['rank', 'tstart'])
+        filenames = self.find_file_names(dataframe)
+        dataframe['file'] = filenames
+
         return IOFrame(dataframe)
