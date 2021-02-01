@@ -50,22 +50,22 @@ class RecorderReader:
             An IOFrame created by trace files of recorder specified by the log_dir of this RecorderReader.
 
         """
-        records = []
+        all_records = []
         for rank in range(self.reader.GM.total_ranks):
-            records_this_rank = []
+            per_rank_records = []
             for record_index in range(self.reader.LMs[rank].total_records):
-                records_this_rank.append(self.reader.records[rank][record_index])
-            records_this_rank = sorted(records_this_rank, key=lambda x: x.tstart)
-            records.append(records_this_rank)
+                per_rank_records.append(self.reader.records[rank][record_index])
+            per_rank_records = sorted(per_rank_records, key=lambda x: x.tstart)
+            all_records.append(per_rank_records)
 
-        dic = {
+        records_as_dict = {
             'rank': [], 
             'fid': [], 
             'name': [], 
             'tstart': [],
             'tend': [],
             'time': [], 
-            'arg_counts': [],
+            'arg_count': [],
             'args': [],
             'return_value': [],
             'file': []
@@ -74,7 +74,7 @@ class RecorderReader:
         fd_to_filenames = [{0: "stdin", 1: "stdout", 2: "stderr"}] * self.reader.GM.total_ranks
         
         for rank in range(self.reader.GM.total_ranks):
-            for record in records[rank]:
+            for record in all_records[rank]:
                 fd_to_filename = fd_to_filenames[rank]
                 function_args = record.args_to_strs()
                 func_name = self.reader.funcs[record.func_id]
@@ -105,17 +105,17 @@ class RecorderReader:
                 else:
                     filename = None    
 
-                dic['rank'].append(rank)
-                dic['fid'].append(record.func_id)
-                dic['name'].append(func_name)
-                dic['tstart'].append(record.tstart)
-                dic['tend'].append(record.tend)
-                dic['time'].append(record.tend - record.tstart)
-                dic['arg_counts'].append(record.arg_count)
-                dic['args'].append(function_args)
-                dic['return_value'].append(record.res)
-                dic['file'].append(filename) 
+                records_as_dict['rank'].append(rank)
+                records_as_dict['fid'].append(record.func_id)
+                records_as_dict['name'].append(func_name)
+                records_as_dict['tstart'].append(record.tstart)
+                records_as_dict['tend'].append(record.tend)
+                records_as_dict['time'].append(record.tend - record.tstart)
+                records_as_dict['arg_count'].append(record.arg_count)
+                records_as_dict['args'].append(function_args)
+                records_as_dict['return_value'].append(record.res)
+                records_as_dict['file'].append(filename) 
 
-        dataframe = pd.DataFrame.from_dict(dic)
+        dataframe = pd.DataFrame.from_dict(records_as_dict)
 
         return IOFrame(dataframe)
