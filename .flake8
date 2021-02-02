@@ -1,0 +1,10 @@
+# -*- conf -*-
+# flake8 settings for prismio 
+#
+# These are the flake8 settings recommended by Black
+# https://github.com/psf/black/blob/master/docs/the_black_code_style.md
+
+[flake8]
+max-line-length = 80
+select = C,E,F,W,B,B950
+extend-ignore = E203, E501
