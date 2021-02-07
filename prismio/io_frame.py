@@ -14,6 +14,10 @@ import sys
 import os
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+# import tkinter
 
 class IOFrame:
     """
@@ -82,3 +86,102 @@ class IOFrame:
         agg_dataframe = groupby_obj.agg(agg_function)
         return agg_dataframe
     
+    def file_count(self, rank=None, agg_function=np.mean):
+        file_count = self.groupby_aggregate(['rank'], 'nunique')['file']
+        if rank != None:
+            file_count = file_count.filter(items=rank)
+        if agg_function == None:
+            return file_count.to_dict()
+        else:
+            return agg_function(file_count.to_list())
+
+    def file_access_count(self, rank=None, agg_function=np.mean):
+        groupby_obj = self.dataframe.groupby(['file'])
+        file_access_count = {}
+        for key, group in groupby_obj:
+            file_access_count_per_rank = group.groupby(['rank'])['fid'].count()
+            if rank != None:
+                file_access_count_per_rank = file_access_count_per_rank.filter(items=rank)
+            file_access_count[key] = file_access_count_per_rank
+        file_access_count = pd.DataFrame(file_access_count)
+        if agg_function == None:
+            return file_access_count
+        else:
+            return file_access_count.apply(agg_function)
+            
+    def function_count(self, rank=None, agg_function=np.mean):
+        groupby_obj = self.dataframe.groupby(['function'])
+        function_count = {}
+        for key, group in groupby_obj:
+            function_count_per_rank = group.groupby(['rank'])['fid'].count()
+            if rank != None:
+                function_count_per_rank = function_count_per_rank.filter(items=rank)
+            function_count[key] = function_count_per_rank
+        function_count = pd.DataFrame(function_count)
+        if agg_function == None:
+            return function_count
+        else:
+            return function_count.apply(agg_function)
+
+    def function_time(self, rank=None, agg_function=np.mean):
+        groupby_obj = self.dataframe.groupby(['function'])
+        function_time = {}
+        for key, group in groupby_obj:
+            function_time_per_rank = group.groupby(['rank'])['time'].sum()
+            if rank != None:
+                function_time_per_rank = function_time_per_rank.filter(items=rank)
+            function_time[key] = function_time_per_rank
+        function_time = pd.DataFrame(function_time)
+        if agg_function == None:
+            return function_time
+        else:
+            return function_time.apply(agg_function)
+
+    def function_calls_by_library(self, rank=None, agg_function=np.mean):
+        
+        def check_library(function):
+            if 'H5' in function:
+                return 'hdf5'
+            elif 'MPI' in function:
+                return 'mpi'
+            else:
+                return 'posix'
+
+        self.dataframe['layer'] = self.dataframe['function'].apply(lambda function: check_library(function))
+        groupby_obj = self.dataframe.groupby(['layer'])
+
+        function_calls_by_library = {}
+        for key, group in groupby_obj:
+            function_calls_by_library_per_rank = group.groupby(['rank'])['function'].count()
+            if rank != None:
+                function_calls_by_library_per_rank = function_calls_by_library_per_rank.filter(items=rank)
+            function_calls_by_library[key] = function_calls_by_library_per_rank
+        function_calls_by_library = pd.DataFrame(function_calls_by_library)
+        if agg_function == None:
+            return function_calls_by_library
+        else:
+            return function_calls_by_library.apply(agg_function)
+
+    def print_trace(self, functions=None):
+        dataframe = self.dataframe
+        if functions != None:
+            dataframe = dataframe[dataframe['function'].isin(functions)]
+        groupby_obj = dataframe.groupby(['function'])
+        for key, group in groupby_obj:
+            x = [np.NaN] * 3 * len(group)
+            x[::3] = group['tstart']
+            x[1::3] = group['tend']
+            y = [np.NaN] * 3 * len(group)
+            y[::3] = group['rank']
+            y[1::3] = group['rank']
+            plt.plot(x, y, label=key)
+        plt.show()
+        plt.clf()
+
+    def print_io_sizes(self):
+        io_sizes = self.groupby_aggregate(['io_size'], 'count')['function']
+        ax = io_sizes.plot.bar()
+        Y = io_sizes.values
+        for i, y in enumerate(Y):
+            ax.text(i, y + 1, y, ha='center', va='bottom')
+        plt.savefig("mygraph.png")

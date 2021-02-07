@@ -61,14 +61,15 @@ class RecorderReader:
         records_as_dict = {
             'rank': [], 
             'fid': [], 
-            'name': [], 
+            'function': [], 
             'tstart': [],
             'tend': [],
             'time': [], 
             'arg_count': [],
             'args': [],
             'return_value': [],
-            'file': []
+            'file': [],
+            'io_size': []
         }
 
         fd_to_filenames = [{0: "stdin", 1: "stdout", 2: "stderr"}] * self.reader.GM.total_ranks
@@ -78,6 +79,7 @@ class RecorderReader:
                 fd_to_filename = fd_to_filenames[rank]
                 function_args = record.args_to_strs()
                 func_name = self.reader.funcs[record.func_id]
+                io_size = None
                 if 'fdopen' in func_name:
                     fd = record.res
                     old_fd = int(function_args[0])
@@ -91,12 +93,20 @@ class RecorderReader:
                     filename = function_args[0]
                     fd_to_filename[fd] = filename
                 elif 'fwrite' in func_name or 'fread' in func_name:
+                    io_size = int(function_args[1]) * int(function_args[2])
                     fd = int(function_args[3])
                     if fd not in fd_to_filename:
                         filename = '__unknown__'
                     else: 
                         filename = fd_to_filename[fd]
-                elif 'seek' in func_name or 'close' in func_name or 'sync' in func_name or 'writev' in func_name or 'readv' in func_name or 'pwrite' in func_name or 'pread' in func_name or 'write' in func_name or 'read' in func_name or 'fprintf' in func_name:
+                elif 'seek' in func_name or 'close' in func_name or 'sync' in func_name or 'fprintf' in func_name:
+                    fd = int(function_args[0])
+                    if fd not in fd_to_filename:
+                        filename = '__unknown__'
+                    else: 
+                        filename = fd_to_filename[fd]
+                elif 'writev' in func_name or 'readv' in func_name or 'pwrite' in func_name or 'pread' in func_name or 'write' in func_name or 'read' in func_name:
+                    io_size = int(function_args[2])
                     fd = int(function_args[0])
                     if fd not in fd_to_filename:
                         filename = '__unknown__'
@@ -107,7 +117,7 @@ class RecorderReader:
 
                 records_as_dict['rank'].append(rank)
                 records_as_dict['fid'].append(record.func_id)
-                records_as_dict['name'].append(func_name)
+                records_as_dict['function'].append(func_name)
                 records_as_dict['tstart'].append(record.tstart)
                 records_as_dict['tend'].append(record.tend)
                 records_as_dict['time'].append(record.tend - record.tstart)
@@ -115,6 +125,7 @@ class RecorderReader:
                 records_as_dict['args'].append(function_args)
                 records_as_dict['return_value'].append(record.res)
                 records_as_dict['file'].append(filename) 
+                records_as_dict['io_size'].append(io_size) 
 
         dataframe = pd.DataFrame.from_dict(records_as_dict)
 
