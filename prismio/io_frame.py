@@ -70,7 +70,7 @@ class IOFrame:
         dataframe = dataframe.drop('index', axis=1)
         return IOFrame(dataframe)
 
-    def groupby_aggregate(self, groupby_columns, agg_function, agg_columns=None):
+    def groupby_aggregate(self, groupby_columns, agg_dict=None):
         """
         Return a dataframe after groupby and aggregate operations on the dataframe of this IOFrame.
 
@@ -83,11 +83,24 @@ class IOFrame:
             A dataframe after groupby and aggregate operations on the dataframe of this IOFrame.
 
         """
+        default_agg_dict = {
+            'rank': 'nunique',
+            'fid': 'count',
+            'function': 'count',
+            'tstart': np.min,
+            'tend': np.max,
+            'time': np.sum,
+            'arg_count': lambda x: x.iloc[0],
+            'args': lambda x: x.iloc[0],
+            'return_value': lambda x: x.iloc[0],
+            'file': 'nunique',
+            'io_size': np.sum
+        }
         groupby_obj = self.dataframe.groupby(groupby_columns)
-        if agg_columns != None:
-            groupby_obj = groupby_obj[agg_columns]
-        agg_dataframe = groupby_obj.agg(agg_function)
-        return agg_dataframe
+        if (agg_dict == None):
+            agg_dict = default_agg_dict
+        agg_dataframe = groupby_obj.agg(agg_dict)
+        return IOFrame(agg_dataframe)
     
     def file_count(self, rank=None, agg_function=np.mean):
         """
@@ -113,7 +126,7 @@ class IOFrame:
             of all rank 1, 3, 5.
 
         """
-        file_count = self.groupby_aggregate(['rank'], 'nunique', agg_columns=['file'])
+        file_count = self.groupby_aggregate(['rank'], 'nunique')['file']
         if rank != None:
             file_count = file_count.loc[rank]
         if agg_function == None:
