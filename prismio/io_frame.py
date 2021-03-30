@@ -76,15 +76,14 @@ class IOFrame:
 
         Args:
             groupby_columns (list of strings): the column names the user want to groupby.
-            agg_function (function or string): the function used for aggregation. For example, 'sum', 'count', etc.
-            agg_columns (list of strings): the columns the user want to aggregate, i.e., show up in the result.
+            groupby_columns (dictionary): aggregation functions for some columns
 
         Return:
             A dataframe after groupby and aggregate operations on the dataframe of this IOFrame.
 
         """
         default_agg_dict = {
-            'rank': 'nunique',
+            'rank': lambda x: x.iloc[0],
             'fid': 'count',
             'function': 'count',
             'tstart': np.min,
@@ -97,9 +96,10 @@ class IOFrame:
             'io_size': np.sum
         }
         groupby_obj = self.dataframe.groupby(groupby_columns)
-        if (agg_dict == None):
-            agg_dict = default_agg_dict
-        agg_dataframe = groupby_obj.agg(agg_dict)
+        if agg_dict is not None:
+            for key in agg_dict:
+                default_agg_dict[key] = agg_dict[key]
+        agg_dataframe = groupby_obj.agg(default_agg_dict)
         return IOFrame(agg_dataframe)
     
     def file_count(self, rank=None, agg_function=np.mean):
@@ -126,7 +126,7 @@ class IOFrame:
             of all rank 1, 3, 5.
 
         """
-        file_count = self.groupby_aggregate(['rank'], 'nunique')['file']
+        file_count = self.groupby_aggregate(['rank']).dataframe['file']
         if rank != None:
             file_count = file_count.loc[rank]
         if agg_function == None:
@@ -165,18 +165,16 @@ class IOFrame:
             this file across rank 1, 3, 5.
 
         """
-        groupby_obj = self.dataframe.groupby(['file'])
-        file_access_count = {}
-        for key, group in groupby_obj:
-            file_access_count_per_rank = group.groupby(['rank'])['fid'].count()
-            if rank != None:
-                file_access_count_per_rank = file_access_count_per_rank.filter(items=rank)
-            file_access_count[key] = file_access_count_per_rank
-        file_access_count = pd.DataFrame(file_access_count)
-        if agg_function == None:
-            return file_access_count
+        dataframe = self.groupby_aggregate(['rank','file'], {'file': 'count'}).dataframe
+        dataframe.drop(dataframe.columns.difference(['file']), 1, inplace=True)
+        dataframe = dataframe.rename(columns={'file': 'access_count'})
+        if rank is not None:
+            dataframe = dataframe[dataframe.index.isin(rank, level=0)]
+        if agg_function is None:
+            return dataframe
         else:
-            return file_access_count.apply(agg_function)
+            dataframe = dataframe.reset_index(level=1)
+            return dataframe.groupby('file').mean()
             
     def function_count(self, rank=None, agg_function=np.mean):
         """
@@ -192,18 +190,16 @@ class IOFrame:
             on the agg_function
 
         """
-        groupby_obj = self.dataframe.groupby(['function'])
-        function_count = {}
-        for key, group in groupby_obj:
-            function_count_per_rank = group.groupby(['rank'])['fid'].count()
-            if rank != None:
-                function_count_per_rank = function_count_per_rank.filter(items=rank)
-            function_count[key] = function_count_per_rank
-        function_count = pd.DataFrame(function_count)
-        if agg_function == None:
-            return function_count
+        dataframe = self.groupby_aggregate(['rank','function'], {'function': 'count'}).dataframe
+        dataframe.drop(dataframe.columns.difference(['function']), 1, inplace=True)
+        dataframe = dataframe.rename(columns={'function': 'num_calls'})
+        if rank is not None:
+            dataframe = dataframe[dataframe.index.isin(rank, level=0)]
+        if agg_function is None:
+            return dataframe
         else:
-            return function_count.apply(agg_function)
+            dataframe = dataframe.reset_index(level=1)
+            return dataframe.groupby('function').mean()
 
     def function_time(self, rank=None, agg_function=np.mean):
         """
@@ -219,18 +215,16 @@ class IOFrame:
             in selected ranks. Or avg/min/max accross selected ranks depending on the agg_function
 
         """
-        groupby_obj = self.dataframe.groupby(['function'])
-        function_time = {}
-        for key, group in groupby_obj:
-            function_time_per_rank = group.groupby(['rank'])['time'].sum()
-            if rank != None:
-                function_time_per_rank = function_time_per_rank.filter(items=rank)
-            function_time[key] = function_time_per_rank
-        function_time = pd.DataFrame(function_time)
-        if agg_function == None:
-            return function_time
+        dataframe = self.groupby_aggregate(['rank','function'], {'time': np.sum}).dataframe
+        dataframe.drop(dataframe.columns.difference(['time']), 1, inplace=True)
+        dataframe = dataframe.rename(columns={'time': 'cumulative_time'})
+        if rank is not None:
+            dataframe = dataframe[dataframe.index.isin(rank, level=0)]
+        if agg_function is None:
+            return dataframe
         else:
-            return function_time.apply(agg_function)
+            dataframe = dataframe.reset_index(level=1)
+            return dataframe.groupby('function').mean()
 
     def function_calls_by_library(self, rank=None, agg_function=np.mean):
         """
