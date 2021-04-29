@@ -171,7 +171,7 @@ class IOFrame:
         dataframe.drop(dataframe.columns.difference(['file']), 1, inplace=True)
         dataframe = dataframe.rename(columns={'file': 'access_count'})
         if rank is not None:
-            dataframe = dataframe[dataframe.index.isin(rank, level=0)]
+            dataframe = dataframe[dataframe.index.isin(rank, level=1)]
         if agg_function is None:
             return dataframe
         else:
@@ -196,7 +196,7 @@ class IOFrame:
         dataframe.drop(dataframe.columns.difference(['function']), 1, inplace=True)
         dataframe = dataframe.rename(columns={'function': 'num_calls'})
         if rank is not None:
-            dataframe = dataframe[dataframe.index.isin(rank, level=0)]
+            dataframe = dataframe[dataframe.index.isin(rank, level=1)]
         if agg_function is None:
             return dataframe
         else:
@@ -217,11 +217,11 @@ class IOFrame:
             in selected ranks. Or avg/min/max accross selected ranks depending on the agg_function
 
         """
-        dataframe = self.groupby_aggregate(['function', 'rank'], {'time': np.sum}).dataframe
+        dataframe = self.groupby_aggregate(['function', 'rank'], {'time': 'sum'}).dataframe
         dataframe.drop(dataframe.columns.difference(['time']), 1, inplace=True)
         dataframe = dataframe.rename(columns={'time': 'cumulative_time'})
         if rank is not None:
-            dataframe = dataframe[dataframe.index.isin(rank, level=0)]
+            dataframe = dataframe[dataframe.index.isin(rank, level=1)]
         if agg_function is None:
             return dataframe
         else:
@@ -253,19 +253,16 @@ class IOFrame:
                 return 'posix'
 
         self.dataframe['layer'] = self.dataframe['function'].apply(lambda function: check_library(function))
-        groupby_obj = self.dataframe.groupby(['layer'])
-
-        function_calls_by_library = {}
-        for key, group in groupby_obj:
-            function_calls_by_library_per_rank = group.groupby(['rank'])['function'].count()
-            if rank != None:
-                function_calls_by_library_per_rank = function_calls_by_library_per_rank.filter(items=rank)
-            function_calls_by_library[key] = function_calls_by_library_per_rank
-        function_calls_by_library = pd.DataFrame(function_calls_by_library)
-        if agg_function == None:
-            return function_calls_by_library
+        dataframe = self.groupby_aggregate(['layer', 'rank'], {'layer': 'count'}).dataframe
+        dataframe.drop(dataframe.columns.difference(['layer']), 1, inplace=True)
+        dataframe = dataframe.rename(columns={'layer': 'num_func_of_layer'})
+        if rank is not None:
+            dataframe = dataframe[dataframe.index.isin(rank, level=1)]
+        if agg_function is None:
+            return dataframe
         else:
-            return function_calls_by_library.apply(agg_function)
+            dataframe = dataframe.groupby(level=[0]).agg({'num_func_of_layer': agg_function})
+            return dataframe
 
     def plot_trace(self, functions=None):
         """
