@@ -75,8 +75,8 @@ class IOFrame:
         Return a dataframe after groupby and aggregate operations on the dataframe of this IOFrame.
 
         Args:
-            groupby_columns (list of strings): the column names the user want to groupby.
-            groupby_columns (dictionary): aggregation functions for some columns
+            groupby_columns (list of strings): the column names the user wants to groupby.
+            agg_dict (dictionary): aggregation functions for some columns
 
         Return:
             A dataframe after groupby and aggregate operations on the dataframe of this IOFrame.
