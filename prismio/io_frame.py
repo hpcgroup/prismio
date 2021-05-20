@@ -98,6 +98,9 @@ class IOFrame:
         groupby_obj = self.dataframe.groupby(groupby_columns)
         if agg_dict is not None:
             for key in agg_dict:
+                if key not in default_agg_dict.keys():
+                    print("Error: unknow column")
+                    exit(1)
                 default_agg_dict[key] = agg_dict[key]
         agg_dataframe = groupby_obj.agg(default_agg_dict)
         return IOFrame(agg_dataframe)
