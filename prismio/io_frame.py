@@ -84,15 +84,15 @@ class IOFrame:
         """
         default_agg_dict = {
             'rank': lambda x: x.iloc[0],
-            'fid': 'count',
-            'function': 'count',
+            'fid': lambda x: x.iloc[0],
+            'function': lambda x: x.iloc[0],
             'tstart': np.min,
             'tend': np.max,
             'time': np.sum,
             'arg_count': lambda x: x.iloc[0],
             'args': lambda x: x.iloc[0],
             'return_value': lambda x: x.iloc[0],
-            'file': 'nunique',
+            'file': lambda x: x.iloc[0],
             'io_size': np.sum
         }
         groupby_obj = self.dataframe.groupby(groupby_columns)
