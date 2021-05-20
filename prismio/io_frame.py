@@ -129,7 +129,7 @@ class IOFrame:
             of all rank 1, 3, 5.
 
         """
-        dataframe = self.groupby_aggregate(['rank']).dataframe
+        dataframe = self.groupby_aggregate(['rank'], {'file': 'nunique'}).dataframe
         dataframe.drop(dataframe.columns.difference(['file']), 1, inplace=True)
         dataframe = dataframe.rename(columns={'file': 'num_files'})
         if rank is not None:
