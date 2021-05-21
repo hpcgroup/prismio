@@ -107,9 +107,10 @@ class IOFrame:
     
     def file_count(self, rank=None, agg_function=np.mean):
         """
-        Depending on input arguments, return the number of files for each rank selected by the
-        user in the form of a Pandas Series or DataFrame. If agg_function is specified, then it 
-        will apply the function to the result.
+        Depending on input arguments, return the number of files for ranks selected by the
+        user in the form of a DataFrame. It contains the number of files touched (read or written) 
+        by these ranks. If agg_function is specified, then it will apply the function to 
+        the result.
 
         Args:
             rank (None or a list): user selected ranks to get file count.
