@@ -99,7 +99,7 @@ class IOFrame:
         if agg_dict is not None:
             for key in agg_dict:
                 if key not in default_agg_dict.keys():
-                    print("Error: unknow column")
+                    print("Error: Specified column does not exist in the dataframe!")
                     exit(1)
                 default_agg_dict[key] = agg_dict[key]
         agg_dataframe = groupby_obj.agg(default_agg_dict)
