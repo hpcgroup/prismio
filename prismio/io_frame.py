@@ -98,7 +98,7 @@ class IOFrame:
         groupby_obj = self.dataframe.groupby(groupby_columns)
         if agg_dict is not None:
             for key in agg_dict:
-                if key not in default_agg_dict.keys():
+                if key not in self.dataframe.columns:
                     print("Error: Specified column does not exist in the dataframe!")
                     exit(1)
                 default_agg_dict[key] = agg_dict[key]
@@ -233,7 +233,7 @@ class IOFrame:
             return dataframe
 
 
-    def function_calls_by_library(self, rank=None, agg_function=np.mean):
+    def function_count_by_library(self, rank=None, agg_function=np.mean):
         """
         Count the number of function calls from mpi, hdf5 and posix. Same implementation to previous
         ones. But it first check the library for each function call, and then groupby the library.
@@ -256,14 +256,14 @@ class IOFrame:
             else:
                 return 'posix'
 
-        self.dataframe['layer'] = self.dataframe['function_name'].apply(lambda function: check_library(function))
-        dataframe = self.groupby_aggregate(['layer', 'rank'], {'layer': 'count'}).dataframe
-        dataframe.drop(dataframe.columns.difference(['layer']), 1, inplace=True)
-        dataframe = dataframe.rename(columns={'layer': 'num_func_of_layer'})
+        self.dataframe['library'] = self.dataframe['function_name'].apply(lambda function: check_library(function))
+        dataframe = self.groupby_aggregate(['rank', 'library'], {'library': 'count'}).dataframe
+        dataframe.drop(dataframe.columns.difference(['library']), 1, inplace=True)
+        dataframe = dataframe.rename(columns={'library': 'func_count_of_lib'})
         if rank is not None:
             dataframe = dataframe[dataframe.index.isin(rank, level=1)]
         if agg_function is None:
             return dataframe
         else:
-            dataframe = dataframe.groupby(level=[0]).agg({'num_func_of_layer': agg_function})
+            dataframe = dataframe.groupby(level=[1]).agg({'func_count_of_lib': agg_function})
             return dataframe
