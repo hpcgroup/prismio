@@ -102,6 +102,9 @@ class IOFrame:
                     print("Error: Specified column does not exist in the dataframe!")
                     exit(1)
                 default_agg_dict[key] = agg_dict[key]
+        for key in list(default_agg_dict.keys()):
+            if key not in self.dataframe.columns:
+                default_agg_dict.pop(key)
         agg_dataframe = groupby_obj.agg(default_agg_dict)
         return IOFrame(agg_dataframe)
     
