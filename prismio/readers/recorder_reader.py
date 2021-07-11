@@ -60,16 +60,16 @@ class RecorderReader:
 
         records_as_dict = {
             'rank': [], 
-            'fid': [], 
-            'function': [], 
+            'function_id': [], 
+            'function_name': [], 
             'tstart': [],
             'tend': [],
             'time': [], 
             'arg_count': [],
             'args': [],
             'return_value': [],
-            'file': [],
-            'io_size': []
+            'file_name': [],
+            'io_volume': []
         }
 
         fd_to_filenames = [{0: "stdin", 1: "stdout", 2: "stderr"}] * self.reader.GM.total_ranks
@@ -116,16 +116,16 @@ class RecorderReader:
                     filename = None    
 
                 records_as_dict['rank'].append(rank)
-                records_as_dict['fid'].append(record.func_id)
-                records_as_dict['function'].append(func_name)
+                records_as_dict['function_id'].append(record.func_id)
+                records_as_dict['function_name'].append(func_name)
                 records_as_dict['tstart'].append(record.tstart)
                 records_as_dict['tend'].append(record.tend)
                 records_as_dict['time'].append(record.tend - record.tstart)
                 records_as_dict['arg_count'].append(record.arg_count)
                 records_as_dict['args'].append(function_args)
                 records_as_dict['return_value'].append(record.res)
-                records_as_dict['file'].append(filename) 
-                records_as_dict['io_size'].append(io_size) 
+                records_as_dict['file_name'].append(filename) 
+                records_as_dict['io_volume'].append(io_size) 
 
         dataframe = pd.DataFrame.from_dict(records_as_dict)
 

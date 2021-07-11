@@ -84,16 +84,16 @@ class IOFrame:
         """
         default_agg_dict = {
             'rank': lambda x: x.iloc[0],
-            'fid': lambda x: x.iloc[0],
-            'function': lambda x: x.iloc[0],
+            'function_id': lambda x: x.iloc[0],
+            'function_name': lambda x: x.iloc[0],
             'tstart': np.min,
             'tend': np.max,
             'time': np.sum,
             'arg_count': lambda x: x.iloc[0],
             'args': lambda x: x.iloc[0],
             'return_value': lambda x: x.iloc[0],
-            'file': lambda x: x.iloc[0],
-            'io_size': np.sum
+            'file_name': lambda x: x.iloc[0],
+            'io_volume': np.sum
         }
         groupby_obj = self.dataframe.groupby(groupby_columns)
         if agg_dict is not None:
@@ -130,9 +130,9 @@ class IOFrame:
             of all rank 1, 3, 5.
 
         """
-        dataframe = self.groupby_aggregate(['rank'], {'file': 'nunique'}).dataframe
-        dataframe.drop(dataframe.columns.difference(['file']), 1, inplace=True)
-        dataframe = dataframe.rename(columns={'file': 'num_files'})
+        dataframe = self.groupby_aggregate(['rank'], {'file_name': 'nunique'}).dataframe
+        dataframe.drop(dataframe.columns.difference(['file_name']), 1, inplace=True)
+        dataframe = dataframe.rename(columns={'file_name': 'num_files'})
         if rank is not None:
             dataframe = dataframe[dataframe.index.isin(rank, level=0)]
         if agg_function == None:
@@ -171,9 +171,9 @@ class IOFrame:
             this file across rank 1, 3, 5.
 
         """
-        dataframe = self.groupby_aggregate(['file', 'rank'], {'file': 'count'}).dataframe
-        dataframe.drop(dataframe.columns.difference(['file']), 1, inplace=True)
-        dataframe = dataframe.rename(columns={'file': 'access_count'})
+        dataframe = self.groupby_aggregate(['file_name', 'rank'], {'file_name': 'count'}).dataframe
+        dataframe.drop(dataframe.columns.difference(['file_name']), 1, inplace=True)
+        dataframe = dataframe.rename(columns={'file_name': 'access_count'})
         if rank is not None:
             dataframe = dataframe[dataframe.index.isin(rank, level=1)]
         if agg_function is None:
@@ -196,9 +196,9 @@ class IOFrame:
             on the agg_function
 
         """
-        dataframe = self.groupby_aggregate(['function', 'rank'], {'function': 'count'}).dataframe
-        dataframe.drop(dataframe.columns.difference(['function']), 1, inplace=True)
-        dataframe = dataframe.rename(columns={'function': 'num_calls'})
+        dataframe = self.groupby_aggregate(['function_name', 'rank'], {'function_name': 'count'}).dataframe
+        dataframe.drop(dataframe.columns.difference(['function_name']), 1, inplace=True)
+        dataframe = dataframe.rename(columns={'function_name': 'num_calls'})
         if rank is not None:
             dataframe = dataframe[dataframe.index.isin(rank, level=1)]
         if agg_function is None:
@@ -221,7 +221,7 @@ class IOFrame:
             in selected ranks. Or avg/min/max accross selected ranks depending on the agg_function
 
         """
-        dataframe = self.groupby_aggregate(['function', 'rank'], {'time': 'sum'}).dataframe
+        dataframe = self.groupby_aggregate(['function_name', 'rank'], {'time': 'sum'}).dataframe
         dataframe.drop(dataframe.columns.difference(['time']), 1, inplace=True)
         dataframe = dataframe.rename(columns={'time': 'cumulative_time'})
         if rank is not None:
@@ -256,7 +256,7 @@ class IOFrame:
             else:
                 return 'posix'
 
-        self.dataframe['layer'] = self.dataframe['function'].apply(lambda function: check_library(function))
+        self.dataframe['layer'] = self.dataframe['function_name'].apply(lambda function: check_library(function))
         dataframe = self.groupby_aggregate(['layer', 'rank'], {'layer': 'count'}).dataframe
         dataframe.drop(dataframe.columns.difference(['layer']), 1, inplace=True)
         dataframe = dataframe.rename(columns={'layer': 'num_func_of_layer'})
