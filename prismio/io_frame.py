@@ -136,6 +136,13 @@ class IOFrame:
             of all rank 1, 3, 5.
 
         """
+        if 'rank' not in self.dataframe.columns:
+            print("Error: \'rank\' does not exist in the dataframe!")
+            exit(1)
+        if 'file_name' not in self.dataframe.columns:
+            print("Error: \'file_name\' does not exist in the dataframe!")
+            exit(1)
+
         dataframe = self.groupby_aggregate(['rank'], {'file_name': 'nunique'}).dataframe
         dataframe.drop(dataframe.columns.difference(['file_name']), 1, inplace=True)
         dataframe = dataframe.rename(columns={'file_name': 'num_files'})
@@ -177,6 +184,13 @@ class IOFrame:
             this file across rank 1, 3, 5.
 
         """
+        if 'rank' not in self.dataframe.columns:
+            print("Error: \'rank\' does not exist in the dataframe!")
+            exit(1)
+        if 'file_name' not in self.dataframe.columns:
+            print("Error: \'file_name\' does not exist in the dataframe!")
+            exit(1)
+
         dataframe = self.groupby_aggregate(['file_name', 'rank'], {'file_name': 'count'}).dataframe
         dataframe.drop(dataframe.columns.difference(['file_name']), 1, inplace=True)
         dataframe = dataframe.rename(columns={'file_name': 'access_count'})
@@ -202,6 +216,13 @@ class IOFrame:
             on the agg_function
 
         """
+        if 'rank' not in self.dataframe.columns:
+            print("Error: \'rank\' does not exist in the dataframe!")
+            exit(1)
+        if 'function_name' not in self.dataframe.columns:
+            print("Error: \'function_name\' does not exist in the dataframe!")
+            exit(1)
+
         dataframe = self.groupby_aggregate(['function_name', 'rank'], {'function_name': 'count'}).dataframe
         dataframe.drop(dataframe.columns.difference(['function_name']), 1, inplace=True)
         dataframe = dataframe.rename(columns={'function_name': 'num_calls'})
@@ -227,6 +248,16 @@ class IOFrame:
             in selected ranks. Or avg/min/max accross selected ranks depending on the agg_function
 
         """
+        if 'rank' not in self.dataframe.columns:
+            print("Error: \'rank\' does not exist in the dataframe!")
+            exit(1)
+        if 'function_name' not in self.dataframe.columns:
+            print("Error: \'function_name\' does not exist in the dataframe!")
+            exit(1)
+        if 'time' not in self.dataframe.columns:
+            print("Error: \'time\' does not exist in the dataframe!")
+            exit(1)
+
         dataframe = self.groupby_aggregate(['function_name', 'rank'], {'time': 'sum'}).dataframe
         dataframe.drop(dataframe.columns.difference(['time']), 1, inplace=True)
         dataframe = dataframe.rename(columns={'time': 'cumulative_time'})
@@ -254,6 +285,13 @@ class IOFrame:
             the agg_function
 
         """
+        if 'rank' not in self.dataframe.columns:
+            print("Error: \'rank\' does not exist in the dataframe!")
+            exit(1)
+        if 'function_name' not in self.dataframe.columns:
+            print("Error: \'function_name\' does not exist in the dataframe!")
+            exit(1)
+
         def check_library(function):
             if 'H5' in function:
                 return 'hdf5'
