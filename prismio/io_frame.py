@@ -17,7 +17,6 @@ import pandas as pd
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
-# import tkinter
 
 class IOFrame:
     """
@@ -143,8 +142,10 @@ class IOFrame:
             print("Error: \'file_name\' does not exist in the dataframe!")
             exit(1)
 
+        original_dataframe = self.dataframe
+        self.dataframe = self.dataframe.drop(self.dataframe.columns.difference(['rank', 'file_name']), 1, inplace=False)
         dataframe = self.groupby_aggregate(['rank'], {'file_name': 'nunique'}).dataframe
-        dataframe.drop(dataframe.columns.difference(['file_name']), 1, inplace=True)
+        self.dataframe = original_dataframe
         dataframe = dataframe.rename(columns={'file_name': 'num_files'})
         if rank is not None:
             dataframe = dataframe[dataframe.index.isin(rank, level=0)]
@@ -191,8 +192,10 @@ class IOFrame:
             print("Error: \'file_name\' does not exist in the dataframe!")
             exit(1)
 
+        original_dataframe = self.dataframe
+        self.dataframe = self.dataframe.drop(self.dataframe.columns.difference(['rank', 'file_name']), 1, inplace=False)
         dataframe = self.groupby_aggregate(['file_name', 'rank'], {'file_name': 'count'}).dataframe
-        dataframe.drop(dataframe.columns.difference(['file_name']), 1, inplace=True)
+        self.dataframe = original_dataframe
         dataframe = dataframe.rename(columns={'file_name': 'access_count'})
         if rank is not None:
             dataframe = dataframe[dataframe.index.isin(rank, level=1)]
@@ -223,8 +226,10 @@ class IOFrame:
             print("Error: \'function_name\' does not exist in the dataframe!")
             exit(1)
 
+        original_dataframe = self.dataframe
+        self.dataframe = self.dataframe.drop(self.dataframe.columns.difference(['rank', 'function_name']), 1, inplace=False)
         dataframe = self.groupby_aggregate(['function_name', 'rank'], {'function_name': 'count'}).dataframe
-        dataframe.drop(dataframe.columns.difference(['function_name']), 1, inplace=True)
+        self.dataframe = original_dataframe
         dataframe = dataframe.rename(columns={'function_name': 'num_calls'})
         if rank is not None:
             dataframe = dataframe[dataframe.index.isin(rank, level=1)]
@@ -258,8 +263,10 @@ class IOFrame:
             print("Error: \'time\' does not exist in the dataframe!")
             exit(1)
 
+        original_dataframe = self.dataframe
+        self.dataframe = self.dataframe.drop(self.dataframe.columns.difference(['rank', 'function_name', 'time']), 1, inplace=False)
         dataframe = self.groupby_aggregate(['function_name', 'rank'], {'time': 'sum'}).dataframe
-        dataframe.drop(dataframe.columns.difference(['time']), 1, inplace=True)
+        self.dataframe = original_dataframe
         dataframe = dataframe.rename(columns={'time': 'cumulative_time'})
         if rank is not None:
             dataframe = dataframe[dataframe.index.isin(rank, level=1)]
@@ -300,9 +307,11 @@ class IOFrame:
             else:
                 return 'posix'
 
+        original_dataframe = self.dataframe
         self.dataframe['library'] = self.dataframe['function_name'].apply(lambda function: check_library(function))
+        self.dataframe = self.dataframe.drop(self.dataframe.columns.difference(['rank', 'library']), 1, inplace=False)
         dataframe = self.groupby_aggregate(['rank', 'library'], {'library': 'count'}).dataframe
-        dataframe.drop(dataframe.columns.difference(['library']), 1, inplace=True)
+        self.dataframe = original_dataframe
         dataframe = dataframe.rename(columns={'library': 'func_count_of_lib'})
         if rank is not None:
             dataframe = dataframe[dataframe.index.isin(rank, level=1)]
