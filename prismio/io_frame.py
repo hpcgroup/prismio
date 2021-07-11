@@ -105,6 +105,9 @@ class IOFrame:
         for key in list(default_agg_dict.keys()):
             if key not in self.dataframe.columns:
                 default_agg_dict.pop(key)
+        for key in groupby_columns:
+            if key not in agg_dict:
+                default_agg_dict.pop(key)
         agg_dataframe = groupby_obj.agg(default_agg_dict)
         return IOFrame(agg_dataframe)
     
