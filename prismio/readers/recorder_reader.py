@@ -105,7 +105,7 @@ class RecorderReader:
                         filename = '__unknown__'
                     else: 
                         filename = fd_to_filename[fd]
-                elif 'writev' in func_name or 'readv' in func_name or 'pwrite' in func_name or 'pread' in func_name or 'write' in func_name or 'read' in func_name:
+                elif 'H5' not in func_name and ('writev' in func_name or 'readv' in func_name or 'pwrite' in func_name or 'pread' in func_name or 'write' in func_name or 'read' in func_name):
                     io_size = int(function_args[2])
                     fd = int(function_args[0])
                     if fd not in fd_to_filename:
