@@ -69,7 +69,7 @@ class IOFrame:
         dataframe = dataframe.drop('index', axis=1)
         return IOFrame(dataframe)
 
-    def groupby_aggregate(self, groupby_columns, agg_dict=None):
+    def groupby_aggregate(self, groupby_columns, agg_dict=None, drop=False):
         """
         Return a dataframe after groupby and aggregate operations on the dataframe of this IOFrame.
 
@@ -95,43 +95,44 @@ class IOFrame:
             'io_volume': np.sum
         }
         groupby_obj = self.dataframe.groupby(groupby_columns)
-        if agg_dict is not None:
-            for key in agg_dict:
-                if key not in self.dataframe.columns:
-                    print("Error: Specified column does not exist in the dataframe!")
-                    exit(1)
-                default_agg_dict[key] = agg_dict[key]
-        for key in list(default_agg_dict.keys()):
+        if agg_dict is None:
+            agg_dataframe = groupby_obj.agg(default_agg_dict)
+            return IOFrame(agg_dataframe)
+        
+        for key in agg_dict:
             if key not in self.dataframe.columns:
-                default_agg_dict.pop(key)
-        for key in groupby_columns:
-            if key not in agg_dict:
-                default_agg_dict.pop(key)
-        agg_dataframe = groupby_obj.agg(default_agg_dict)
+                print("Error: Specified column does not exist in the dataframe!")
+                exit(1)
+        if drop:
+            agg_dataframe = groupby_obj.agg(agg_dict)
+        else:
+            for key in agg_dict:
+                default_agg_dict[key] = agg_dict[key]
+            agg_dataframe = groupby_obj.agg(default_agg_dict)
         return IOFrame(agg_dataframe)
     
-    def file_count(self, rank=None, agg_function=np.mean):
+    def file_count(self, rank=None, agg_across_ranks=None):
         """
         Depending on input arguments, return the number of files for ranks selected by the
         user in the form of a DataFrame. It contains the number of files touched (read or written) 
-        by these ranks. If agg_function is specified, then it will apply the function to 
+        by these ranks. If agg_across_ranks is specified, then it will apply the function to 
         the result.
 
         Args:
             rank (None or a list): user selected ranks to get file count.
-            agg_function: (function): aggregation function applying on the result.
+            agg_across_ranks: (function): aggregation function applying on the result.
 
         Return:
-            If rank == None and agg_function == None, it returns a Pandas DataFrame 
+            If rank == None and agg_across_ranks == None, it returns a Pandas DataFrame 
             that contains the number of files for all ranks.
-            If rank != None and agg_function == None, it returns a Pandas DataFrame 
+            If rank != None and agg_across_ranks == None, it returns a Pandas DataFrame 
             that contains the number of files for the listed ranks.
-            If rank == None and agg_function != None, it returns a number from applying
-            the function on the dataframe. For example, if agg_function = np.mean, it
+            If rank == None and agg_across_ranks != None, it returns a number from applying
+            the function on the dataframe. For example, if agg_across_ranks = np.mean, it
             returns the average number of files of all ranks.
-            If rank != None and agg_function != None, it returns a number from applying
+            If rank != None and agg_across_ranks != None, it returns a number from applying
             the function on the dataframe for listed ranks. For example, if rank =
-            [1,3,5], agg_function = np.mean, it returns the average number of files 
+            [1,3,5], agg_across_ranks = np.mean, it returns the average number of files 
             of all rank 1, 3, 5.
 
         """
@@ -143,44 +144,43 @@ class IOFrame:
             exit(1)
 
         original_dataframe = self.dataframe
-        self.dataframe = self.dataframe.drop(self.dataframe.columns.difference(['rank', 'file_name']), 1, inplace=False)
-        dataframe = self.groupby_aggregate(['rank'], {'file_name': 'nunique'}).dataframe
+        dataframe = self.groupby_aggregate(['rank'], {'file_name': 'nunique'}, drop=True).dataframe
         self.dataframe = original_dataframe
         dataframe = dataframe.rename(columns={'file_name': 'num_files'})
         if rank is not None:
             dataframe = dataframe[dataframe.index.isin(rank, level=0)]
-        if agg_function == None:
+        if agg_across_ranks == None:
             return dataframe
         else:
-            return agg_function(dataframe)
+            return agg_across_ranks(dataframe)
 
-    def file_access_count(self, rank=None, agg_function=np.mean):
+    def file_access_count(self, rank=None, agg_across_ranks=None):
         """
         Depending on input arguments, return the number of accesses of each file in each rank
-        selected by the user in the form of a DataFrame. If agg_function is specified, then it 
+        selected by the user in the form of a DataFrame. If agg_across_ranks is specified, then it 
         will apply the function to the result.
         The function first group the dataframe by file name. Then it goes through each group. 
         And for each group, the function groups it by rank and aggregates to find the count for
         each rank. Then it filters ranks the user wants, and put result to a dictionary. After
         going through all file name groups. It use the dictionary to create a dataframe. If
-        agg_function is specified, it applies the function on the dataframe.
+        agg_across_ranks is specified, it applies the function on the dataframe.
 
         Args:
             rank (None or a list): user selected ranks to get file count.
-            agg_function: (function): aggregation function applying on the result.
+            agg_across_ranks: (function): aggregation function applying on the result.
 
         Return:
-            If rank == None and agg_function == None, it returns a Pandas DataFrame in which
+            If rank == None and agg_across_ranks == None, it returns a Pandas DataFrame in which
             the columns are file names, rows are ranks, and the values are the number of accesses
             for that file and rank.
-            If rank != None and agg_function == None, it returns a similar Pandas DataFrame but
+            If rank != None and agg_across_ranks == None, it returns a similar Pandas DataFrame but
             with only user specified ranks (rows).
-            If rank == None and agg_function != None, it returns a Pandas Series that has the number
-            from applying the function on each file name across all ranks. For example, if agg_function = 
+            If rank == None and agg_across_ranks != None, it returns a Pandas Series that has the number
+            from applying the function on each file name across all ranks. For example, if agg_across_ranks = 
             np.mean, it returns a series containing the average number of accesses for this file across 
             all ranks.
-            If rank != None and agg_function != None, it returns a Pandas Series that has the number
-            from applying the function on each file name across selected ranks. For example, if agg_function = 
+            If rank != None and agg_across_ranks != None, it returns a Pandas Series that has the number
+            from applying the function on each file name across selected ranks. For example, if agg_across_ranks = 
             np.mean, rank = [1, 3, 5], it returns a series containing the average number of accesses for 
             this file across rank 1, 3, 5.
 
@@ -193,30 +193,29 @@ class IOFrame:
             exit(1)
 
         original_dataframe = self.dataframe
-        self.dataframe = self.dataframe.drop(self.dataframe.columns.difference(['rank', 'file_name']), 1, inplace=False)
-        dataframe = self.groupby_aggregate(['file_name', 'rank'], {'file_name': 'count'}).dataframe
+        dataframe = self.groupby_aggregate(['file_name', 'rank'], {'file_name': 'count'}, drop=True).dataframe
         self.dataframe = original_dataframe
         dataframe = dataframe.rename(columns={'file_name': 'access_count'})
         if rank is not None:
             dataframe = dataframe[dataframe.index.isin(rank, level=1)]
-        if agg_function is None:
+        if agg_across_ranks is None:
             return dataframe
         else:
-            dataframe = dataframe.groupby(level=[0]).agg({'access_count': agg_function})
+            dataframe = dataframe.groupby(level=[0]).agg({'access_count': agg_across_ranks})
             return dataframe
             
-    def function_count(self, rank=None, agg_function=np.mean):
+    def function_count(self, rank=None, agg_across_ranks=None):
         """
         Identical to the previous one. Only instead of groupby file, it groupby function.
 
         Args:
             rank (None or a list): user selected ranks to get file count.
-            agg_function: (function): aggregation function applying on the result.
+            agg_across_ranks: (function): aggregation function applying on the result.
 
         Return:
             Identical structure to the previous one, except the value here is the number of function
             calls for a function in selected ranks. Or avg/min/max accross selected ranks depending 
-            on the agg_function
+            on the agg_across_ranks
 
         """
         if 'rank' not in self.dataframe.columns:
@@ -227,30 +226,29 @@ class IOFrame:
             exit(1)
 
         original_dataframe = self.dataframe
-        self.dataframe = self.dataframe.drop(self.dataframe.columns.difference(['rank', 'function_name']), 1, inplace=False)
-        dataframe = self.groupby_aggregate(['function_name', 'rank'], {'function_name': 'count'}).dataframe
+        dataframe = self.groupby_aggregate(['function_name', 'rank'], {'function_name': 'count'}, drop=True).dataframe
         self.dataframe = original_dataframe
         dataframe = dataframe.rename(columns={'function_name': 'num_calls'})
         if rank is not None:
             dataframe = dataframe[dataframe.index.isin(rank, level=1)]
-        if agg_function is None:
+        if agg_across_ranks is None:
             return dataframe
         else:
-            dataframe = dataframe.groupby(level=[0]).agg({'num_calls': agg_function})
+            dataframe = dataframe.groupby(level=[0]).agg({'num_calls': agg_across_ranks})
             return dataframe
 
-    def function_time(self, rank=None, agg_function=np.mean):
+    def function_time(self, rank=None, agg_across_ranks=None):
         """
         Identical to the previous one. Only instead of aggregating by count, it 
         aggregating by sum of the time.
 
         Args:
             rank (None or a list): user selected ranks to get file count.
-            agg_function: (function): aggregation function applying on the result.
+            agg_across_ranks: (function): aggregation function applying on the result.
 
         Return:
             Identical structure to the previous one, except the value here is the total time of function
-            in selected ranks. Or avg/min/max accross selected ranks depending on the agg_function
+            in selected ranks. Or avg/min/max accross selected ranks depending on the agg_across_ranks
 
         """
         if 'rank' not in self.dataframe.columns:
@@ -264,32 +262,31 @@ class IOFrame:
             exit(1)
 
         original_dataframe = self.dataframe
-        self.dataframe = self.dataframe.drop(self.dataframe.columns.difference(['rank', 'function_name', 'time']), 1, inplace=False)
-        dataframe = self.groupby_aggregate(['function_name', 'rank'], {'time': 'sum'}).dataframe
+        dataframe = self.groupby_aggregate(['function_name', 'rank'], {'time': 'sum'}, drop=True).dataframe
         self.dataframe = original_dataframe
         dataframe = dataframe.rename(columns={'time': 'cumulative_time'})
         if rank is not None:
             dataframe = dataframe[dataframe.index.isin(rank, level=1)]
-        if agg_function is None:
+        if agg_across_ranks is None:
             return dataframe
         else:
-            dataframe = dataframe.groupby(level=[0]).agg({'cumulative_time': agg_function})
+            dataframe = dataframe.groupby(level=[0]).agg({'cumulative_time': agg_across_ranks})
             return dataframe
 
 
-    def function_count_by_library(self, rank=None, agg_function=np.mean):
+    def function_count_by_library(self, rank=None, agg_across_ranks=None):
         """
         Count the number of function calls from mpi, hdf5 and posix. Same implementation to previous
         ones. But it first check the library for each function call, and then groupby the library.
 
         Args:
             rank (None or a list): user selected ranks to get file count.
-            agg_function: (function): aggregation function applying on the result.
+            agg_across_ranks: (function): aggregation function applying on the result.
 
         Return:
             Identical structure to the previous one, except the value here is the number of function
             calls of a library in selected ranks. Or avg/min/max accross selected ranks depending on 
-            the agg_function
+            the agg_across_ranks
 
         """
         if 'rank' not in self.dataframe.columns:
@@ -309,14 +306,14 @@ class IOFrame:
 
         original_dataframe = self.dataframe
         self.dataframe['library'] = self.dataframe['function_name'].apply(lambda function: check_library(function))
-        self.dataframe = self.dataframe.drop(self.dataframe.columns.difference(['rank', 'library']), 1, inplace=False)
-        dataframe = self.groupby_aggregate(['rank', 'library'], {'library': 'count'}).dataframe
+        dataframe = self.groupby_aggregate(['library', 'rank'], {'library': 'count'}, drop=True).dataframe
         self.dataframe = original_dataframe
+        self.dataframe.drop(['library'], axis=1)
         dataframe = dataframe.rename(columns={'library': 'func_count_of_lib'})
         if rank is not None:
             dataframe = dataframe[dataframe.index.isin(rank, level=1)]
-        if agg_function is None:
+        if agg_across_ranks is None:
             return dataframe
         else:
-            dataframe = dataframe.groupby(level=[1]).agg({'func_count_of_lib': agg_function})
+            dataframe = dataframe.groupby(level=[0]).agg({'func_count_of_lib': agg_across_ranks})
             return dataframe
