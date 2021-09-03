@@ -101,8 +101,7 @@ class IOFrame:
         
         for key in agg_dict:
             if key not in self.dataframe.columns:
-                print("Error: Specified column does not exist in the dataframe!")
-                exit(1)
+                raise KeyError("Specified column does not exist in the dataframe!")
         if drop:
             agg_dataframe = groupby_obj.agg(agg_dict)
         else:
@@ -137,11 +136,9 @@ class IOFrame:
 
         """
         if 'rank' not in self.dataframe.columns:
-            print("Error: \'rank\' does not exist in the dataframe!")
-            exit(1)
+            raise KeyError("\'rank\' does not exist in the dataframe!")
         if 'file_name' not in self.dataframe.columns:
-            print("Error: \'file_name\' does not exist in the dataframe!")
-            exit(1)
+            raise KeyError("\'file_name\' does not exist in the dataframe!")
 
         original_dataframe = self.dataframe
         dataframe = self.groupby_aggregate(['rank'], {'file_name': 'nunique'}, drop=True).dataframe
@@ -186,11 +183,9 @@ class IOFrame:
 
         """
         if 'rank' not in self.dataframe.columns:
-            print("Error: \'rank\' does not exist in the dataframe!")
-            exit(1)
+            raise KeyError("\'rank\' does not exist in the dataframe!")
         if 'file_name' not in self.dataframe.columns:
-            print("Error: \'file_name\' does not exist in the dataframe!")
-            exit(1)
+            raise KeyError("\'file_name\' does not exist in the dataframe!")
 
         original_dataframe = self.dataframe
         dataframe = self.groupby_aggregate(['file_name', 'rank'], {'file_name': 'count'}, drop=True).dataframe
@@ -219,11 +214,9 @@ class IOFrame:
 
         """
         if 'rank' not in self.dataframe.columns:
-            print("Error: \'rank\' does not exist in the dataframe!")
-            exit(1)
+            raise KeyError("\'rank\' does not exist in the dataframe!")
         if 'function_name' not in self.dataframe.columns:
-            print("Error: \'function_name\' does not exist in the dataframe!")
-            exit(1)
+            raise KeyError("\'function_name\' does not exist in the dataframe!")
 
         original_dataframe = self.dataframe
         dataframe = self.groupby_aggregate(['function_name', 'rank'], {'function_name': 'count'}, drop=True).dataframe
@@ -252,14 +245,11 @@ class IOFrame:
 
         """
         if 'rank' not in self.dataframe.columns:
-            print("Error: \'rank\' does not exist in the dataframe!")
-            exit(1)
+            raise KeyError("\'rank\' does not exist in the dataframe!")
         if 'function_name' not in self.dataframe.columns:
-            print("Error: \'function_name\' does not exist in the dataframe!")
-            exit(1)
+            raise KeyError("\'function_name\' does not exist in the dataframe!")
         if 'time' not in self.dataframe.columns:
-            print("Error: \'time\' does not exist in the dataframe!")
-            exit(1)
+            raise KeyError("\'time\' does not exist in the dataframe!")
 
         original_dataframe = self.dataframe
         dataframe = self.groupby_aggregate(['function_name', 'rank'], {'time': 'sum'}, drop=True).dataframe
@@ -290,11 +280,9 @@ class IOFrame:
 
         """
         if 'rank' not in self.dataframe.columns:
-            print("Error: \'rank\' does not exist in the dataframe!")
-            exit(1)
+            raise KeyError("\'rank\' does not exist in the dataframe!")
         if 'function_name' not in self.dataframe.columns:
-            print("Error: \'function_name\' does not exist in the dataframe!")
-            exit(1)
+            raise KeyError("\'function_name\' does not exist in the dataframe!")
 
         def check_library(function):
             if 'H5' in function:
