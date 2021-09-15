@@ -142,13 +142,18 @@ class IOFrame:
             of all rank 1, 3, 5.
 
         """
+
+        # save the original dataframe because we are going to filter out rows
+        original_dataframe = self.dataframe
+        # filter out not specified ranks
+        if rank is not None:
+            # This will copy the dataframe instead of overwriting it
+            self.dataframe = self.dataframe[self.dataframe['rank'].isin(rank)]
+        
         # groupby rank, then count the number of unique file names
         dataframe = self.groupby_aggregate(['rank'], {'file_name': 'nunique'}, drop=True)
         dataframe = dataframe.rename(columns={'file_name': 'num_files'})
-        
-        # filter out not specified ranks
-        if rank is not None:
-            dataframe = dataframe[dataframe.index.isin(rank, level=0)]
+        self.dataframe = original_dataframe
         
         if agg_function == None:
             return dataframe
@@ -187,14 +192,18 @@ class IOFrame:
             this file across rank 1, 3, 5.
 
         """
+
+        # save the original dataframe because we are going to filter out rows
+        original_dataframe = self.dataframe
+        # filter out not specified ranks
+        if rank is not None:
+            # This will copy the dataframe instead of overwriting it
+            self.dataframe = self.dataframe[self.dataframe['rank'].isin(rank)]
         
         # groupby file name and rank, then count the number of each file name
         dataframe = self.groupby_aggregate(['file_name', 'rank'], {'file_name': 'count'}, drop=True)
         dataframe = dataframe.rename(columns={'file_name': 'access_count'})
-        
-        # filter out not specified ranks
-        if rank is not None:
-            dataframe = dataframe[dataframe.index.isin(rank, level=1)]
+        self.dataframe = original_dataframe
         
         if agg_function is None:
             return dataframe
@@ -218,13 +227,17 @@ class IOFrame:
 
         """
         
-        # groupby function name and rank, then count the number of each function name
-        dataframe = self.groupby_aggregate(['function_name', 'rank'], {'function_name': 'count'}, drop=True)
-        dataframe = dataframe.rename(columns={'function_name': 'num_calls'})
-        
+        # save the original dataframe because we are going to filter out rows
+        original_dataframe = self.dataframe
         # filter out not specified ranks
         if rank is not None:
-            dataframe = dataframe[dataframe.index.isin(rank, level=1)]
+            # This will copy the dataframe instead of overwriting it
+            self.dataframe = self.dataframe[self.dataframe['rank'].isin(rank)]
+        
+        # groupby function name and rank, then count the number of each function name
+        dataframe = self.groupby_aggregate(['function_name', 'rank'], {'function_name': 'count'}, drop=True)
+        self.dataframe = original_dataframe
+        dataframe = dataframe.rename(columns={'function_name': 'num_calls'})
         
         # group by function name and apply agg_function over ranks if it's not None
         if agg_function is None:
@@ -247,14 +260,18 @@ class IOFrame:
             in selected ranks. Or avg/min/max accross selected ranks depending on the agg_function
 
         """
-       
+        
+        # save the original dataframe because we are going to filter out rows
+        original_dataframe = self.dataframe
+        # filter out not specified ranks
+        if rank is not None:
+            # This will copy the dataframe instead of overwriting it
+            self.dataframe = self.dataframe[self.dataframe['rank'].isin(rank)]
+        
         # groupby function name and rank, then sum the runtime 
         dataframe = self.groupby_aggregate(['function_name', 'rank'], {'time': 'sum'}, drop=True)
         dataframe = dataframe.rename(columns={'time': 'cumulative_time'})
-        
-        # filter out not specified ranks
-        if rank is not None:
-            dataframe = dataframe[dataframe.index.isin(rank, level=1)]
+        self.dataframe = original_dataframe
         
         if agg_function is None:
             return dataframe
@@ -289,21 +306,24 @@ class IOFrame:
             else:
                 return 'posix'
 
-        # check library for each row and put result into a new column 
-        self.dataframe['library'] = self.dataframe['function_name'].apply(lambda function: check_library(function))
-        
-        # groupby library name and rank, then count the number of functions in each library
-        dataframe = self.groupby_aggregate(['library', 'rank'], {'library': 'count'}, drop=True)
-        
-        # drop the new column to maintain the original dataframe
-        self.dataframe.drop(['library'], axis=1)
-        
-        dataframe = dataframe.rename(columns={'library': 'func_count_of_lib'})
-        
+        # save the original dataframe because we are going to filter out rows
+        original_dataframe = self.dataframe
         # filter out not specified ranks
         if rank is not None:
-            dataframe = dataframe[dataframe.index.isin(rank, level=1)]
+            # This will copy the dataframe instead of overwriting it
+            self.dataframe = self.dataframe[self.dataframe['rank'].isin(rank)]
         
+        # check library for each row and put result into a new column 
+        pd.options.mode.chained_assignment = None
+        self.dataframe['library'] = self.dataframe['function_name'].apply(lambda function: check_library(function))
+        pd.options.mode.chained_assignment = 'warn'
+
+        # groupby library name and rank, then count the number of functions in each library
+        dataframe = self.groupby_aggregate(['library', 'rank'], {'library': 'count'}, drop=True)
+        dataframe = dataframe.rename(columns={'library': 'func_count_of_lib'})
+        self.dataframe = original_dataframe
+
+        # filter out not specified ranks
         # group by library name and apply agg_function over ranks if it's not None
         if agg_function is None:
             return dataframe
