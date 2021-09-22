@@ -72,7 +72,10 @@ class IOFrame:
 
         Args:
             groupby_columns (list of strings): the column names the user wants to groupby.
+            rank (list): Ranks the user wants to keep. Other ranks will be filtered out in the result.
+                If it is None, then keep all ranks.
             agg_dict (dictionary): aggregation functions for some columns
+            drop: If true, drop columns not specified in agg_dict. Otherwise keep all columns in the result.
 
         Return:
             A dataframe after groupby and aggregate operations on the dataframe of this IOFrame.
@@ -93,6 +96,8 @@ class IOFrame:
             'io_volume': np.sum
         }
 
+        # Filter out not specified ranks. Make a deep copy and groupby_agg on it,
+        # so self.dataframe is not changed.
         if rank is not None:
             dataframe = self.dataframe[self.dataframe['rank'].isin(rank)]
             dataframe = dataframe.copy(deep=True)
