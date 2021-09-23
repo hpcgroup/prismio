@@ -155,7 +155,7 @@ class IOFrame:
         """
         # groupby rank, then count the number of unique file names
         dataframe = self.groupby_aggregate(['rank'], rank=rank, agg_dict={'file_name': 'nunique'}, drop=True)
-        dataframe = dataframe.rename(columns={'file_name': 'num_files'})
+        dataframe = dataframe.rename(columns={'file_name': 'file_count'})
         
         if agg_function == None:
             return dataframe
@@ -197,13 +197,13 @@ class IOFrame:
         
         # groupby file name and rank, then count the number of each file name
         dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'file_name': 'count'}, drop=True)
-        dataframe = dataframe.rename(columns={'file_name': 'access_count'})
+        dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
         
         if agg_function is None:
             return dataframe
         # group by file names and apply agg_function over ranks if it's not None
         else:
-            dataframe = dataframe.groupby(level=[0]).agg({'access_count': agg_function})
+            dataframe = dataframe.groupby(level=[0]).agg({'file_access_count': agg_function})
             return dataframe
             
     def function_count(self, rank=None, agg_function=None):
@@ -223,13 +223,13 @@ class IOFrame:
         
         # groupby function name and rank, then count the number of each function name
         dataframe = self.groupby_aggregate(['function_name', 'rank'], rank=rank, agg_dict={'function_name': 'count'}, drop=True)
-        dataframe = dataframe.rename(columns={'function_name': 'num_calls'})
+        dataframe = dataframe.rename(columns={'function_name': 'function_count'})
         
         # group by function name and apply agg_function over ranks if it's not None
         if agg_function is None:
             return dataframe
         else:
-            dataframe = dataframe.groupby(level=[0]).agg({'num_calls': agg_function})
+            dataframe = dataframe.groupby(level=[0]).agg({'function_count': agg_function})
             return dataframe
 
     def function_time(self, rank=None, agg_function=None):
@@ -249,13 +249,12 @@ class IOFrame:
        
         # groupby function name and rank, then sum the runtime 
         dataframe = self.groupby_aggregate(['function_name', 'rank'], rank=rank, agg_dict={'time': 'sum'}, drop=True)
-        dataframe = dataframe.rename(columns={'time': 'cumulative_time'})
         
         if agg_function is None:
             return dataframe
         # group by function name and apply agg_function over ranks if it's not None
         else:
-            dataframe = dataframe.groupby(level=[0]).agg({'cumulative_time': agg_function})
+            dataframe = dataframe.groupby(level=[0]).agg({'time': agg_function})
             return dataframe
 
 
@@ -293,11 +292,11 @@ class IOFrame:
         # drop the new column to maintain the original dataframe
         self.dataframe.drop(['library'], axis=1)
         
-        dataframe = dataframe.rename(columns={'library': 'func_count_of_lib'})
+        dataframe = dataframe.rename(columns={'library': 'library_call_count'})
         
         # group by library name and apply agg_function over ranks if it's not None
         if agg_function is None:
             return dataframe
         else:
-            dataframe = dataframe.groupby(level=[0]).agg({'func_count_of_lib': agg_function})
+            dataframe = dataframe.groupby(level=[0]).agg({'library_call_count': agg_function})
             return dataframe
