@@ -56,75 +56,75 @@ def test_file_count():
     assert file_count[0] == 3.0
     file_count = ior_io_frame.file_count()
     assert len(file_count) == 2
-    assert file_count.loc[0]['num_files'] == 3
-    assert file_count.loc[1]['num_files'] == 3
+    assert file_count.loc[0]['file_count'] == 3
+    assert file_count.loc[1]['file_count'] == 3
     file_count = ior_io_frame.file_count(rank=[0])
     assert len(file_count) == 1
-    assert file_count.loc[0]['num_files'] == 3
+    assert file_count.loc[0]['file_count'] == 3
 
 def test_file_access_count():
     ior_io_frame = IOFrame.from_recorder("./data/recorder-ior")
     file_access_count = ior_io_frame.file_access_count(agg_function=np.mean)
     assert len(file_access_count) == 4
-    assert file_access_count.loc['/dev/shm/job2443846470-34168-OMPI_COLL_IBM-0-collshm-comm4-master0']['access_count'] == 4
-    assert file_access_count.loc['stdout']['access_count'] == 122
+    assert file_access_count.loc['/dev/shm/job2443846470-34168-OMPI_COLL_IBM-0-collshm-comm4-master0']['file_access_count'] == 4
+    assert file_access_count.loc['stdout']['file_access_count'] == 122
     file_access_count = ior_io_frame.file_access_count(rank=[0], agg_function=np.mean)
     assert len(file_access_count) == 3
-    assert file_access_count.loc['/g/g92/xu23/research/performance-analysis/ior/testFile']['access_count'] == 12
-    assert file_access_count.loc['stdout']['access_count'] == 122
+    assert file_access_count.loc['/g/g92/xu23/research/performance-analysis/ior/testFile']['file_access_count'] == 12
+    assert file_access_count.loc['stdout']['file_access_count'] == 122
     file_access_count = ior_io_frame.file_access_count()
     assert len(file_access_count) == 6
-    assert file_access_count.loc['/dev/shm/job2443846470-34168-OMPI_COLL_IBM-0-collshm-comm4-master0'].loc[0]['access_count'] == 6
+    assert file_access_count.loc['/dev/shm/job2443846470-34168-OMPI_COLL_IBM-0-collshm-comm4-master0'].loc[0]['file_access_count'] == 6
     file_access_count = ior_io_frame.file_access_count(agg_function='sum')
-    assert file_access_count.loc['/g/g92/xu23/research/performance-analysis/ior/testFile']['access_count'] == 24
+    assert file_access_count.loc['/g/g92/xu23/research/performance-analysis/ior/testFile']['file_access_count'] == 24
 
 def test_function_count():
     ior_io_frame = IOFrame.from_recorder("./data/recorder-ior")
     function_count = ior_io_frame.function_count(agg_function=np.mean)
     assert len(function_count) == 22
-    assert function_count.loc['MPI_Allreduce']['num_calls'] == 8.0
-    assert function_count.loc['write']['num_calls'] == 2.0
+    assert function_count.loc['MPI_Allreduce']['function_count'] == 8.0
+    assert function_count.loc['write']['function_count'] == 2.0
     function_count = ior_io_frame.function_count(rank=[1], agg_function=np.mean)
     assert len(function_count) == 19
-    assert function_count.loc['MPI_Reduce']['num_calls'] == 14
+    assert function_count.loc['MPI_Reduce']['function_count'] == 14
     function_count = ior_io_frame.function_count()
     assert len(function_count) == 41
-    assert function_count.loc['MPI_Allreduce', 0]['num_calls'] == 8
-    assert function_count.loc['access', 0]['num_calls'] == 1
+    assert function_count.loc['MPI_Allreduce', 0]['function_count'] == 8
+    assert function_count.loc['access', 0]['function_count'] == 1
     function_count = ior_io_frame.function_count(agg_function='sum')
-    assert function_count.loc['__xstat']['num_calls'] == 5
-    assert function_count.loc['vfprintf']['num_calls'] == 116
+    assert function_count.loc['__xstat']['function_count'] == 5
+    assert function_count.loc['vfprintf']['function_count'] == 116
 
 def test_function_time():
     ior_io_frame = IOFrame.from_recorder("./data/recorder-ior")
     function_time = ior_io_frame.function_time(agg_function=np.mean)
     assert len(function_time) == 22
-    assert function_time.loc['MPI_Allreduce']['cumulative_time'] == 0.00024650000000000236
-    assert function_time.loc['write']['cumulative_time'] == 2.2499999999999517e-05
+    assert function_time.loc['MPI_Allreduce']['time'] == 0.00024650000000000236
+    assert function_time.loc['write']['time'] == 2.2499999999999517e-05
     function_time = ior_io_frame.function_time(rank=[1], agg_function=np.mean)
     assert len(function_time) == 19
-    assert function_time.loc['MPI_Reduce']['cumulative_time'] == 1.3999999999997521e-05
+    assert function_time.loc['MPI_Reduce']['time'] == 1.3999999999997521e-05
     function_time = ior_io_frame.function_time()
     assert len(function_time) == 41
-    assert function_time.loc['MPI_Allreduce', 0]['cumulative_time'] == 8.200000000000264e-05
-    assert function_time.loc['access', 0]['cumulative_time'] == 5.000000000000664e-06
+    assert function_time.loc['MPI_Allreduce', 0]['time'] == 8.200000000000264e-05
+    assert function_time.loc['access', 0]['time'] == 5.000000000000664e-06
     function_time = ior_io_frame.function_time(agg_function='max')
-    assert function_time.loc['__xstat']['cumulative_time'] == 0.00014500000000000103
-    assert function_time.loc['vfprintf']['cumulative_time'] == 7.199999999999741e-05
+    assert function_time.loc['__xstat']['time'] == 0.00014500000000000103
+    assert function_time.loc['vfprintf']['time'] == 7.199999999999741e-05
 
 def test_function_calls_by_library():
     ior_io_frame = IOFrame.from_recorder("./data/recorder-ior")
     layer = ior_io_frame.function_count_by_library(agg_function=np.mean)
     assert len(layer) == 2
-    assert layer.loc['mpi']['func_count_of_lib'] == 43.5
-    assert layer.loc['posix']['func_count_of_lib'] == 91
+    assert layer.loc['mpi']['library_call_count'] == 43.5
+    assert layer.loc['posix']['library_call_count'] == 91
     layer = ior_io_frame.function_count_by_library(rank=[0], agg_function=np.mean)
-    assert layer.loc['mpi']['func_count_of_lib'] == 44
-    assert layer.loc['posix']['func_count_of_lib'] == 153
+    assert layer.loc['mpi']['library_call_count'] == 44
+    assert layer.loc['posix']['library_call_count'] == 153
     layer = ior_io_frame.function_count_by_library()
     assert len(layer) == 4
-    assert layer.loc['mpi', 0]['func_count_of_lib'] == 44
-    assert layer.loc['posix', 1]['func_count_of_lib'] == 29
+    assert layer.loc['mpi', 0]['library_call_count'] == 44
+    assert layer.loc['posix', 1]['library_call_count'] == 29
     layer = ior_io_frame.function_count_by_library(rank=[1], agg_function=np.sum)
-    assert layer.loc['mpi']['func_count_of_lib'] == 43
-    assert layer.loc['posix']['func_count_of_lib'] == 29
+    assert layer.loc['mpi']['library_call_count'] == 43
+    assert layer.loc['posix']['library_call_count'] == 29
