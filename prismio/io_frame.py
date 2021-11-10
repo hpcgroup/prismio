@@ -329,47 +329,46 @@ class IOFrame:
         return dataframe
 
     def percentage(self, function_type='io', by_rank=False, by_file=False):
+        if function_type == 'io':
+            function_type = 'write,read,other_io'
         if by_rank and not by_file:
-            dataframe = self.groupby_aggregate(['rank'], rank=None, agg_dict={'time': np.sum}, filter_lambda=lambda x: x['function_type'] == function_type, drop=True)
+            dataframe = self.groupby_aggregate(['rank'], rank=None, agg_dict={'time': np.sum}, filter_lambda=lambda x: x['function_type'] in function_type, drop=True)
             dataframe = dataframe.join(self.metadata['time'], lsuffix='_io', rsuffix='_total')
             dataframe['percentage'] = dataframe['time_io'] / dataframe['time_total']
             return dataframe
         
         if by_file and not by_rank:
             total_runtime = self.metadata['end_timestamp'].max() - self.metadata['start_timestamp'].min()
-            dataframe = self.groupby_aggregate(['file_name'], rank=None, agg_dict={'time': np.sum}, filter_lambda=lambda x: x['function_type'] == function_type, drop=True)
+            dataframe = self.groupby_aggregate(['file_name'], rank=None, agg_dict={'time': np.sum}, filter_lambda=lambda x: x['function_type'] in function_type, drop=True)
             dataframe['percentage'] = dataframe['time'] / total_runtime
             return dataframe
         
         if by_file and by_rank:
-            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=None, agg_dict={'time': np.sum}, filter_lambda=lambda x: x['function_type'] == function_type, drop=True)
+            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=None, agg_dict={'time': np.sum}, filter_lambda=lambda x: x['function_type'] in function_type, drop=True)
             dataframe = dataframe.reset_index()
             dataframe = dataframe.merge(self.metadata[['rank', 'time']], on=['rank'], suffixes=('_io_this_rank', '_total_this_rank'))
             dataframe['percentage'] = dataframe['time_io_this_rank'] / dataframe['time_total_this_rank']
-            dataframe = dataframe.set_index('file_name')
+            dataframe = dataframe.set_index(['rank', 'file_name'])
             return dataframe
         
-        total_runtime = self.metadata['time'].sum()
-        time = self.dataframe[self.dataframe['function_type'] == function_type]['time'].sum()
+        total_runtime = self.metadata['time'].sum()    
+        time = self.dataframe[self.dataframe['function_type'] in function_type]['time'].sum()
         return time / total_runtime
         
     def file_info(self):
-        dataframe = self.groupby_aggregate(['file_name','rank','function_type'], agg_dict={'file_name': 'count'}, drop=True, dropna=True)
+        dataframe = self.groupby_aggregate(['file_name','rank','function_type'], agg_dict={'file_name': 'count', 'io_volume': np.sum, 'time': np.sum}, drop=True, dropna=True)
         dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
         return dataframe
 
 
     def shared_files(self):
-        dataframe = self.groupby_aggregate(['file_name', 'function_type'], agg_dict={'rank': 'nunique'}, drop=True, dropna=True)
+        dataframe = self.groupby_aggregate(['file_name', 'function_type'], agg_dict={'rank': 'nunique', 'file_name': 'count', 'io_volume': np.sum, 'time': np.sum}, drop=True, dropna=True)
+        dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
         dataframe = dataframe.rename(columns={'rank': 'num_ranks'})
         return dataframe
 
-    # def shared_filed_count()
-    # # each file, how many rank read and write it
-    # # a function return a dataframe of shared files and I/O
-
-    # def 
-    # # time in I/O vs total runtime
-
-    # def num_rank_involved_IO
+    def rank_involved_IO(self):
+        dataframe = self.groupby_aggregate(['rank','file_name','function_type'], agg_dict={'file_name': 'count', 'io_volume': np.sum, 'time': np.sum}, drop=True, dropna=False)
+        dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
+        return dataframe
     
