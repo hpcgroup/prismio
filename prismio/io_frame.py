@@ -12,6 +12,9 @@ or Darshan
 
 import sys
 import os
+
+from pandas.core.frame import DataFrame
+from typing import List, Dict
 import numpy as np
 import pandas as pd
 
@@ -23,7 +26,7 @@ class IOFrame:
     the files functions access to, etc. It also provides flexible api 
     functions for user to do analysis.
     """
-    def __init__(self, dataframe, metadata):
+    def __init__(self, dataframe: DataFrame, metadata: DataFrame):
         """
         Args:
             dataframe (DataFrame): the dataframe this IOFrame should have.
@@ -36,7 +39,7 @@ class IOFrame:
         self.metadata = metadata
 
     @staticmethod
-    def from_recorder(log_dir):
+    def from_recorder(log_dir: str):
         """
         Read trace files from recorder and create the corresponding
         IOFrame object.
@@ -68,7 +71,7 @@ class IOFrame:
         print("Warning: filtering dataframe may cause inconsistency in metadata!")
         return IOFrame(dataframe, self.metadata)
 
-    def groupby_aggregate(self, groupby_columns, rank=None, agg_dict=None, drop=False, filter_lambda=None, dropna=False):
+    def groupby_aggregate(self, groupby_columns: List[str], rank: List[int]=None, agg_dict: Dict=None, filter_lambda=None, drop: bool=False, dropna: bool=False):
         """
         Return a dataframe after groupby and aggregate operations on the dataframe of this IOFrame.
 
@@ -77,7 +80,9 @@ class IOFrame:
             rank (list): Ranks the user wants to keep. Other ranks will be filtered out in the result.
                 If it is None, then keep all ranks.
             agg_dict (dictionary): aggregation functions for some columns
+            filter_lambda (function): function used to filter rows before groupby
             drop: If true, drop columns not specified in agg_dict. Otherwise keep all columns in the result.
+            dropna: used by groupby, decide whether to include NaN as a group.
 
         Return:
             A dataframe after groupby and aggregate operations on the dataframe of this IOFrame.
@@ -133,7 +138,7 @@ class IOFrame:
         
         return agg_dataframe
     
-    def file_count(self, rank=None, agg_function=None):
+    def file_count(self, rank: List[int]=None, agg_function=None):
         """
         Depending on input arguments, return the number of files for ranks selected by the
         user in the form of a DataFrame. It contains the number of files touched (read or written) 
@@ -177,7 +182,7 @@ class IOFrame:
         else:
             return agg_function(dataframe)
 
-    def file_access_count(self, rank=None, agg_function=None):
+    def file_access_count(self, rank: List[int]=None, agg_function=None):
         """
         Depending on input arguments, return the number of accesses of each file in each rank
         selected by the user in the form of a DataFrame. If agg_function is specified, then it 
@@ -220,7 +225,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'file_access_count': agg_function})
             return dataframe
             
-    def function_count(self, rank=None, agg_function=None):
+    def function_count(self, rank: List[int]=None, agg_function=None):
         """
         Identical to the previous one. Only instead of groupby file, it groupby function.
 
@@ -246,7 +251,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'function_count': agg_function})
             return dataframe
 
-    def function_time(self, rank=None, agg_function=None):
+    def function_time(self, rank: List[int]=None, agg_function=None):
         """
         Identical to the previous one. Only instead of aggregating by count, it 
         aggregating by sum of the time.
@@ -272,7 +277,7 @@ class IOFrame:
             return dataframe
 
 
-    def function_count_by_library(self, rank=None, agg_function=None):
+    def function_count_by_library(self, rank: List[int]=None, agg_function=None):
         """
         Count the number of function calls from mpi, hdf5 and posix. Same implementation to previous
         ones. But it first check the library for each function call, and then groupby the library.
@@ -317,7 +322,23 @@ class IOFrame:
 
     
     
-    def io_volume(self, by_rank=False, by_file=False):
+    def io_volume(self, by_rank: bool=False, by_file: bool=False):
+        """
+        Compute io volume in different granularity. By default it returns the io volume of the whole run.
+        If by_rank is True, return a dataframe where each row corresponds to a rank and has the io volumn 
+        for it. If by_file is True, return a dataframe where each row corresponds to a file and has its io 
+        volumn. If both are Ture, return a multi-index dataframe where each row corresponds to a file accessed
+        by a rank and its io_volumn
+
+        Args:
+            by_rank (bool): Show io volumn of each rank if true.
+            by_file (bool): Show io volumn of each file if true.
+
+        Return:
+            A dataframe or a number depending on the granularity.
+
+        """
+
         groupby_columns = []
         if by_rank:
             groupby_columns.append('rank')
@@ -328,7 +349,26 @@ class IOFrame:
         dataframe = self.groupby_aggregate(groupby_columns, rank=None, agg_dict={'io_volume': np.sum}, drop=True)
         return dataframe
 
-    def percentage(self, function_type='io', by_rank=False, by_file=False):
+    def percentage(self, function_type: str='io', by_rank: bool=False, by_file: bool=False):
+        """
+        Compute the percentage of time spent in a type of functions.
+        By default it returns the percentage of io time vs the whole run.
+        If by_rank is True, return a dataframe where each row corresponds to a rank and has the time spent in
+        function_type vs time spent in that rank. If by_file is True, return a dataframe where each row corresponds 
+        to a file and has its time spent in function_type vs the total runtime (only meaning for if function_type is io) 
+        If both are Ture, return a multi-index dataframe where each row corresponds to a file accessed
+        by a rank and its time spent in function_type vs time spent in that rank. (only meaning for if function_type is io) 
+
+        Args:
+            function_type (str): the function type 
+            by_rank (bool): Show io volumn of each rank if true.
+            by_file (bool): Show io volumn of each file if true.
+
+        Return:
+            A dataframe or a number depending on the granularity.
+
+        """
+
         if function_type == 'io':
             function_type = 'write,read,other_io'
         if by_rank and not by_file:
@@ -356,18 +396,46 @@ class IOFrame:
         return time / total_runtime
         
     def file_info(self):
+        """
+        Organize file information (num of access, io_volume, time spent) to a dataframe
+        
+        Args:
+
+        Return:
+            A multi-index dataframe containing information of a file operated by a rank for all files and ranks.
+
+        """
         dataframe = self.groupby_aggregate(['file_name','rank','function_type'], agg_dict={'file_name': 'count', 'io_volume': np.sum, 'time': np.sum}, drop=True, dropna=True)
         dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
         return dataframe
 
 
     def shared_files(self):
+        """
+        Organize shared file information to a dataframe. Besides num of access, io_volume, time spent, include number
+        of ranks that share the file
+        
+        Args:
+
+        Return:
+            A multi-index dataframe containing information of a file shared by some ranks for all files.
+
+        """
         dataframe = self.groupby_aggregate(['file_name', 'function_type'], agg_dict={'rank': 'nunique', 'file_name': 'count', 'io_volume': np.sum, 'time': np.sum}, drop=True, dropna=True)
         dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
         dataframe = dataframe.rename(columns={'rank': 'num_ranks'})
         return dataframe
 
     def rank_involved_IO(self):
+        """
+        Organize rank information to a dataframe.
+        
+        Args:
+
+        Return:
+            A multi-index dataframe containing information of a rank.
+
+        """
         dataframe = self.groupby_aggregate(['rank','file_name','function_type'], agg_dict={'file_name': 'count', 'io_volume': np.sum, 'time': np.sum}, drop=True, dropna=False)
         dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
         return dataframe
