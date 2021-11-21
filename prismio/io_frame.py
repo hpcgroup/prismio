@@ -392,7 +392,7 @@ class IOFrame:
             return dataframe
         
         total_runtime = self.metadata['time'].sum()    
-        time = self.dataframe[self.dataframe['function_type'] in function_type]['time'].sum()
+        time = self.dataframe[self.dataframe.apply(lambda x: x['function_type'] in function_type, axis=1)]['time'].sum()
         return time / total_runtime
         
     def file_info(self):
