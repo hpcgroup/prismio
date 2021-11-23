@@ -10,6 +10,7 @@ or Darshan
 """
 
 
+import dataclasses
 import sys
 import os
 
@@ -17,7 +18,9 @@ from pandas.core.frame import DataFrame
 from typing import List, Dict
 import numpy as np
 import pandas as pd
+from dataclasses import dataclass
 
+@dataclasses
 class IOFrame:
     """
     Main class of the prism application. It holds I/O performance data 
@@ -26,17 +29,10 @@ class IOFrame:
     the files functions access to, etc. It also provides flexible api 
     functions for user to do analysis.
     """
-    def __init__(self, dataframe: DataFrame, metadata: DataFrame):
-        """
-        Args:
-            dataframe (DataFrame): the dataframe this IOFrame should have.
-
-        Return:
-            None.
-
-        """
-        self.dataframe = dataframe
-        self.metadata = metadata
+    # the dataframe this IOFrame should have.
+    dataFrame: DataFrame
+    # the dataframe containing metadata info, such as total runtime of each rank
+    metadata: DataFrame
 
     @staticmethod
     def from_recorder(log_dir: str):
