@@ -172,11 +172,6 @@ class RecorderReader:
             'end_timestamp': [], 
             'time': [], 
             'file_count': [],
-            # 'filenames': [],
-            # 'file_sizes': [],
-            # 'filemap': [], 
-            # 'filemap_to_strs': [],
-            # 'function_count': [],
             'total_records': []
         }
 

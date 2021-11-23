@@ -320,7 +320,7 @@ class IOFrame:
     
     def io_volume(self, by_rank: Optional[bool]=False, by_file: Optional[bool]=False):
         """
-        Compute io volume in different granularity. By default it returns the io volume of the whole run.
+        Compute I/O volumes at different granularities. By default it returns the io volume of the whole run.
         If by_rank is True, return a dataframe where each row corresponds to a rank and has the io volumn 
         for it. If by_file is True, return a dataframe where each row corresponds to a file and has its io 
         volumn. If both are Ture, return a multi-index dataframe where each row corresponds to a file accessed
