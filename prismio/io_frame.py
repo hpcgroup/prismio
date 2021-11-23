@@ -15,7 +15,7 @@ import sys
 import os
 
 from pandas.core.frame import DataFrame
-from typing import List, Dict, Optional
+from typing import Callable, List, Dict, Optional
 import numpy as np
 import pandas as pd
 from dataclasses import dataclass
@@ -67,7 +67,7 @@ class IOFrame:
         print("Warning: filtering dataframe may cause inconsistency in metadata!")
         return IOFrame(dataframe, self.metadata)
 
-    def groupby_aggregate(self, groupby_columns: List[str], rank: Optional[list]=None, agg_dict: Optional[dict]=None, filter_lambda=None, drop: Optional[bool]=False, dropna: Optional[bool]=False):
+    def groupby_aggregate(self, groupby_columns: List[str], rank: Optional[list]=None, agg_dict: Optional[dict]=None, filter_lambda: Optional[Callable[..., bool]]=None, drop: Optional[bool]=False, dropna: Optional[bool]=False):
         """
         Return a dataframe after groupby and aggregate operations on the dataframe of this IOFrame.
 
@@ -134,7 +134,7 @@ class IOFrame:
         
         return agg_dataframe
     
-    def file_count(self, rank: Optional[list]=None, agg_function=None):
+    def file_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
         """
         Depending on input arguments, return the number of files for ranks selected by the
         user in the form of a DataFrame. It contains the number of files touched (read or written) 
@@ -178,7 +178,7 @@ class IOFrame:
         else:
             return agg_function(dataframe)
 
-    def file_access_count(self, rank: Optional[list]=None, agg_function=None):
+    def file_access_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
         """
         Depending on input arguments, return the number of accesses of each file in each rank
         selected by the user in the form of a DataFrame. If agg_function is specified, then it 
@@ -221,7 +221,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'file_access_count': agg_function})
             return dataframe
             
-    def function_count(self, rank: Optional[list]=None, agg_function=None):
+    def function_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
         """
         Identical to the previous one. Only instead of groupby file, it groupby function.
 
@@ -247,7 +247,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'function_count': agg_function})
             return dataframe
 
-    def function_time(self, rank: Optional[list]=None, agg_function=None):
+    def function_time(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
         """
         Identical to the previous one. Only instead of aggregating by count, it 
         aggregating by sum of the time.
@@ -273,7 +273,7 @@ class IOFrame:
             return dataframe
 
 
-    def function_count_by_library(self, rank: Optional[list]=None, agg_function=None):
+    def function_count_by_library(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
         """
         Count the number of function calls from mpi, hdf5 and posix. Same implementation to previous
         ones. But it first check the library for each function call, and then groupby the library.
