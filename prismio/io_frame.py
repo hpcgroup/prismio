@@ -175,7 +175,7 @@ class IOFrame:
         # groupby rank, then count the number of unique file names
         dataframe = self.groupby_aggregate(['rank'], rank=rank, agg_dict={'file_name': 'nunique'}, drop=True)
         dataframe = dataframe.rename(columns={'file_name': 'file_count'})
-        
+
         if agg_function == None:
             return dataframe
         # apply agg_function if it's not None
@@ -217,7 +217,9 @@ class IOFrame:
         # groupby file name and rank, then count the number of each file name
         dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'file_name': 'count'}, drop=True)
         dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
-        
+        new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+        dataframe = dataframe.reindex(new_index).fillna(0)
+
         if agg_function is None:
             return dataframe
         # group by file names and apply agg_function over ranks if it's not None
@@ -243,7 +245,9 @@ class IOFrame:
         # groupby function name and rank, then count the number of each function name
         dataframe = self.groupby_aggregate(['function_name', 'rank'], rank=rank, agg_dict={'function_name': 'count'}, drop=True)
         dataframe = dataframe.rename(columns={'function_name': 'function_count'})
-        
+        new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+        dataframe = dataframe.reindex(new_index).fillna(0)
+
         # group by function name and apply agg_function over ranks if it's not None
         if agg_function is None:
             return dataframe
@@ -268,7 +272,9 @@ class IOFrame:
        
         # groupby function name and rank, then sum the runtime 
         dataframe = self.groupby_aggregate(['function_name', 'rank'], rank=rank, agg_dict={'time': 'sum'}, drop=True)
-        
+        new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+        dataframe = dataframe.reindex(new_index).fillna(0)
+
         if agg_function is None:
             return dataframe
         # group by function name and apply agg_function over ranks if it's not None
@@ -312,7 +318,9 @@ class IOFrame:
         self.dataframe.drop(['library'], axis=1)
         
         dataframe = dataframe.rename(columns={'library': 'library_call_count'})
-        
+        new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+        dataframe = dataframe.reindex(new_index).fillna(0)
+
         # group by library name and apply agg_function over ranks if it's not None
         if agg_function is None:
             return dataframe
