@@ -1,93 +1,106 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt 
+import seaborn as sns
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 from prismio.io_frame import IOFrame
-from matplotlib.pyplot import cm
+
 
 class IOFramePlotter:
     def __init__(self, io_frame, save_dir='/Users/henryxu/Desktop') -> None:
         self.save_dir = save_dir
         self.io_frame = io_frame
 
-    def plot_function_count(self, stacked=False, filename='function_count'):
-        df = self.io_frame.function_count()
-        functions = df.index.get_level_values(level=0)
-        ranks = df.index.get_level_values(level=1).unique()
-        num_functions = len(functions)
-        num_ranks = len(ranks)
-        colors = cm.rainbow(np.linspace(0, 1, num_functions))
-        
-        if stacked:
-            bottom = np.zeros(num_ranks)
-            for function, color in zip(functions, colors):
-                y = df.loc[function]['function_count']
-                y = y.reindex(list(range(num_ranks)), fill_value = 0)
-                plt.bar(ranks, y, bottom=bottom, label=function, color=color)
-                bottom += y
-
-            plt.xticks(np.arange(num_ranks), ranks, rotation=0)
-            plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+    def plot_function_count(self, aggregate=True, function_major=False, stacked=False, filename='function_count'):
+        if aggregate:
+            df = self.io_frame.function_count(agg_function=['min', 'mean', 'max'])
+            df.columns = df.columns.droplevel()
+            df = df.reset_index()
+            df['ymin'] = df['mean'] - df['min']
+            df['ymax'] = df['max'] - df['mean']
+            yerr = df[['ymin', 'ymax']].T.to_numpy()
+            plt.rcParams['errorbar.capsize'] = 10
+            sns.barplot(x='function_name', y='mean', data=df, yerr=yerr)
+            plt.xticks(rotation = 45)
             plt.ylabel('count')
             plt.xlabel('rank')
             plt.title("function count")
-            plt.rcParams['figure.figsize'] = (30.0, 16.0)
             plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
-        else:
-            total_width = 0.8
-            width = total_width / num_functions
-
-            for i, function in enumerate(functions):
-                y = df.loc[function]['function_count']
-                y = y.reindex(list(range(num_ranks)), fill_value = 0)
-                plt.bar(ranks - total_width / 2 + (i - 0.5) * width, y, width=width, label=function, color=colors[i])
-
-            plt.xticks(np.arange(num_ranks), ranks, rotation=0)
-            plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
-            plt.ylabel('function_count')
-            plt.xlabel('rank')
-            plt.title("function time")
-            plt.rcParams['figure.figsize'] = (30.0, 16.0)
-            plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
-
-
-    def plot_function_time(self, stacked=False, filename='function_time'):
-        df = self.io_frame.function_time()
-        functions = df.index.get_level_values(level=0)
-        ranks = df.index.get_level_values(level=1).unique()
-        num_functions = len(functions)
-        num_ranks = len(ranks)
-        colors = cm.rainbow(np.linspace(0, 1, num_functions))
+            plt.clf()
+            return
+        
+        df = self.io_frame.function_count()
 
         if stacked:
-            bottom = np.zeros(num_ranks)
-            for function, color in zip(functions, colors):
-                y = df.loc[function]['time']
-                y = y.reindex(list(range(num_ranks)), fill_value = 0)
-                plt.bar(ranks, y, bottom=bottom, label=function, color=color)
-                bottom += y
-
-            plt.xticks(np.arange(num_ranks), ranks, rotation=0)
-            plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
-            plt.ylabel('time')
-            plt.xlabel('rank')
-            plt.title("function time")
-            plt.rcParams['figure.figsize'] = (30.0, 16.0)
-            plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
-
+            if function_major:
+                df = df.swaplevel()
+            df = df.unstack(fill_value=0)
+            df.columns = df.columns.droplevel()
+            for rank in df.columns.to_list():
+                df[rank] = df[rank] / df[rank].sum()
+            df=df.T
+            df.plot(kind='bar', stacked=True)
         else:
-            total_width = 0.8
-            width = total_width / num_functions
+            df = df.reset_index()
+            if function_major:
+                sns.barplot(x='function_name', y='function_count', hue='rank', data=df)
+            else:
+                sns.barplot(x='rank', y='function_count', hue='function_name', data=df)
+        
+        if function_major:
+            plt.xticks(rotation = 45)
+        else:
+            plt.xticks(rotation = 0)
+        plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+        plt.ylabel('count')
+        plt.xlabel('rank')
+        plt.title("function count")
+        plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
+        plt.clf()
 
-            for i, function in enumerate(functions):
-                y = df.loc[function]['time']
-                y = y.reindex(list(range(num_ranks)), fill_value = 0)
-                plt.bar(ranks - total_width / 2 + (i - 0.5) * width, y, width=width, label=function, color=colors[i])
-
-            plt.xticks(np.arange(num_ranks), ranks, rotation=0)
-            plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+    def plot_function_time(self, aggregate=True, function_major=False, stacked=False, filename='function_time'):
+        if aggregate:
+            df = self.io_frame.function_time(agg_function=['min', 'mean', 'max'])
+            df.columns = df.columns.droplevel()
+            df = df.reset_index()
+            df['ymin'] = df['mean'] - df['min']
+            df['ymax'] = df['max'] - df['mean']
+            yerr = df[['ymin', 'ymax']].T.to_numpy()
+            plt.rcParams['errorbar.capsize'] = 10
+            sns.barplot(x='function_name', y='mean', data=df, yerr=yerr)
+            plt.xticks(rotation = 45)
             plt.ylabel('time')
             plt.xlabel('rank')
             plt.title("function time")
-            plt.rcParams['figure.figsize'] = (30.0, 16.0)
             plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
+            plt.clf()
+            return
+        
+        df = self.io_frame.function_time()
+
+        if stacked:
+            if function_major:
+                df = df.swaplevel()
+            df = df.unstack(fill_value=0)
+            df.columns = df.columns.droplevel()
+            for rank in df.columns.to_list():
+                df[rank] = df[rank] / df[rank].sum()
+            df=df.T
+            df.plot(kind='bar', stacked=True)
+        else:
+            df = df.reset_index()
+            if function_major:
+                sns.barplot(x='function_name', y='function_time', hue='rank', data=df)
+            else:
+                sns.barplot(x='rank', y='function_time', hue='function_name', data=df)
+        
+        if function_major:
+            plt.xticks(rotation = 45)
+        else:
+            plt.xticks(rotation = 0)
+        plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+        plt.ylabel('time')
+        plt.xlabel('rank')
+        plt.title("function time")
+        plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
+        plt.clf()
