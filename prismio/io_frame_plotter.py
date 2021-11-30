@@ -15,12 +15,12 @@ class IOFramePlotter:
         if aggregate:
             df = self.io_frame.function_count(agg_function=['min', 'mean', 'max'])
             df.columns = df.columns.droplevel()
-            df = df.reset_index()
+            df.reset_index(inplace=True)
             df['ymin'] = df['mean'] - df['min']
             df['ymax'] = df['max'] - df['mean']
             yerr = df[['ymin', 'ymax']].T.to_numpy()
             plt.rcParams['errorbar.capsize'] = 10
-            sns.barplot(x='function_name', y='mean', data=df, yerr=yerr)
+            sns.barplot(x='function_name', y='mean', data=df, yerr=yerr, ec='black')
             plt.xticks(rotation = 45)
             plt.ylabel('count')
             plt.xlabel('rank')
@@ -39,13 +39,13 @@ class IOFramePlotter:
             for rank in df.columns.to_list():
                 df[rank] = df[rank] / df[rank].sum()
             df=df.T
-            df.plot(kind='bar', stacked=True)
+            df.plot(kind='bar', stacked=True, ec='black')
         else:
-            df = df.reset_index()
+            df.reset_index(inplace=True)
             if function_major:
-                sns.barplot(x='function_name', y='function_count', hue='rank', data=df)
+                sns.barplot(x='function_name', y='function_count', hue='rank', data=df, ec='black')
             else:
-                sns.barplot(x='rank', y='function_count', hue='function_name', data=df)
+                sns.barplot(x='rank', y='function_count', hue='function_name', data=df, ec='black')
         
         if function_major:
             plt.xticks(rotation = 45)
@@ -62,12 +62,12 @@ class IOFramePlotter:
         if aggregate:
             df = self.io_frame.function_time(agg_function=['min', 'mean', 'max'])
             df.columns = df.columns.droplevel()
-            df = df.reset_index()
+            df.reset_index(inplace=True)
             df['ymin'] = df['mean'] - df['min']
             df['ymax'] = df['max'] - df['mean']
             yerr = df[['ymin', 'ymax']].T.to_numpy()
             plt.rcParams['errorbar.capsize'] = 10
-            sns.barplot(x='function_name', y='mean', data=df, yerr=yerr)
+            sns.barplot(x='function_name', y='mean', data=df, yerr=yerr, ec='black')
             plt.xticks(rotation = 45)
             plt.ylabel('time')
             plt.xlabel('rank')
@@ -86,13 +86,13 @@ class IOFramePlotter:
             for rank in df.columns.to_list():
                 df[rank] = df[rank] / df[rank].sum()
             df=df.T
-            df.plot(kind='bar', stacked=True)
+            df.plot(kind='bar', stacked=True, ec='black')
         else:
-            df = df.reset_index()
+            df.reset_index(inplace=True)
             if function_major:
-                sns.barplot(x='function_name', y='function_time', hue='rank', data=df)
+                sns.barplot(x='function_name', y='time', hue='rank', data=df, ec='black')
             else:
-                sns.barplot(x='rank', y='function_time', hue='function_name', data=df)
+                sns.barplot(x='rank', y='time', hue='function_name', data=df, ec='black')
         
         if function_major:
             plt.xticks(rotation = 45)
