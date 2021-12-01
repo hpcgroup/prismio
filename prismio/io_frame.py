@@ -54,6 +54,9 @@ class IOFrame:
         from prismio.readers.recorder_reader import RecorderReader
         return RecorderReader(log_dir).read()
 
+    def copy(self):
+        return IOFrame(self.dataframe.copy(deep=True), self.metadata.copy(deep=True))
+    
     def filter(self, my_lambda): 
         """
         Create a new IOFrame based on the filter function the user provides.
