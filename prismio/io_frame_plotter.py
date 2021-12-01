@@ -11,10 +11,12 @@ class IOFramePlotter:
         self.save_dir = save_dir
         self.io_frame = io_frame
 
-    def plot_function_count(self, aggregate=True, function_major=False, stacked=False, filename='function_count'):
+    def plot_function_count(self, aggregate=True, function_major=False, stacked=False, sort=True, ascending=False, save=False, filename='function_count'):
         if aggregate:
             df = self.io_frame.function_count(agg_function=['min', 'mean', 'max'])
             df.columns = df.columns.droplevel()
+            if sort:
+                df.sort_values('mean', ascending=ascending, inplace=True)
             df.reset_index(inplace=True)
             df['ymin'] = df['mean'] - df['min']
             df['ymax'] = df['max'] - df['mean']
@@ -25,7 +27,10 @@ class IOFramePlotter:
             plt.ylabel('count')
             plt.xlabel('rank')
             plt.title("function count")
-            plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
+            if save:
+                plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
+            else:
+                plt.show()
             plt.clf()
             return
         
@@ -42,6 +47,8 @@ class IOFramePlotter:
             df.plot(kind='bar', stacked=True, ec='black')
         else:
             df.reset_index(inplace=True)
+            if sort:
+                df.sort_values('function_count', ascending=ascending, inplace=True)
             if function_major:
                 sns.barplot(x='function_name', y='function_count', hue='rank', data=df, ec='black')
             else:
@@ -55,14 +62,19 @@ class IOFramePlotter:
         plt.ylabel('count')
         plt.xlabel('rank')
         plt.title("function count")
-        plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
+        if save:
+            plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
+        else:
+            plt.show()
         plt.clf()
 
-    def plot_function_time(self, aggregate=True, function_major=False, stacked=False, filename='function_time'):
+    def plot_function_time(self, aggregate=True, function_major=False, stacked=False, sort=True, ascending=False, save=False, filename='function_time'):
         if aggregate:
             df = self.io_frame.function_time(agg_function=['min', 'mean', 'max'])
             df.columns = df.columns.droplevel()
             df.reset_index(inplace=True)
+            if sort:
+                df.sort_values('mean', ascending=ascending, inplace=True)
             df['ymin'] = df['mean'] - df['min']
             df['ymax'] = df['max'] - df['mean']
             yerr = df[['ymin', 'ymax']].T.to_numpy()
@@ -72,7 +84,10 @@ class IOFramePlotter:
             plt.ylabel('time')
             plt.xlabel('rank')
             plt.title("function time")
-            plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
+            if save:
+                plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
+            else:
+                plt.show()
             plt.clf()
             return
         
@@ -89,6 +104,8 @@ class IOFramePlotter:
             df.plot(kind='bar', stacked=True, ec='black')
         else:
             df.reset_index(inplace=True)
+            if sort:
+                df.sort_values('time', ascending=ascending, inplace=True)
             if function_major:
                 sns.barplot(x='function_name', y='time', hue='rank', data=df, ec='black')
             else:
@@ -102,5 +119,8 @@ class IOFramePlotter:
         plt.ylabel('time')
         plt.xlabel('rank')
         plt.title("function time")
-        plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
+        if save:
+            plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
+        else:
+            plt.show()
         plt.clf()
