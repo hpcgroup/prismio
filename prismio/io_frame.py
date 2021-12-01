@@ -10,14 +10,17 @@ or Darshan
 """
 
 
+import dataclasses
 import sys
 import os
 
 from pandas.core.frame import DataFrame
-from typing import List, Dict
+from typing import Callable, List, Dict, Optional
 import numpy as np
 import pandas as pd
+from dataclasses import dataclass
 
+@dataclass
 class IOFrame:
     """
     Main class of the prism application. It holds I/O performance data 
@@ -26,17 +29,10 @@ class IOFrame:
     the files functions access to, etc. It also provides flexible api 
     functions for user to do analysis.
     """
-    def __init__(self, dataframe: DataFrame, metadata: DataFrame):
-        """
-        Args:
-            dataframe (DataFrame): the dataframe this IOFrame should have.
-
-        Return:
-            None.
-
-        """
-        self.dataframe = dataframe
-        self.metadata = metadata
+    # the dataframe this IOFrame should have.
+    dataframe: DataFrame
+    # the dataframe containing metadata info, such as total runtime of each rank
+    metadata: DataFrame
 
     @staticmethod
     def from_recorder(log_dir: str):
@@ -74,7 +70,7 @@ class IOFrame:
         print("Warning: filtering dataframe may cause inconsistency in metadata!")
         return IOFrame(dataframe, self.metadata)
 
-    def groupby_aggregate(self, groupby_columns: List[str], rank: List[int]=None, agg_dict: Dict=None, filter_lambda=None, drop: bool=False, dropna: bool=False):
+    def groupby_aggregate(self, groupby_columns: List[str], rank: Optional[list]=None, agg_dict: Optional[dict]=None, filter_lambda: Optional[Callable[..., bool]]=None, drop: Optional[bool]=False, dropna: Optional[bool]=False):
         """
         Return a dataframe after groupby and aggregate operations on the dataframe of this IOFrame.
 
@@ -141,7 +137,7 @@ class IOFrame:
         
         return agg_dataframe
     
-    def file_count(self, rank: List[int]=None, agg_function=None):
+    def file_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
         """
         Depending on input arguments, return the number of files for ranks selected by the
         user in the form of a DataFrame. It contains the number of files touched (read or written) 
@@ -185,7 +181,7 @@ class IOFrame:
         else:
             return agg_function(dataframe)
 
-    def file_access_count(self, rank: List[int]=None, agg_function=None):
+    def file_access_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
         """
         Depending on input arguments, return the number of accesses of each file in each rank
         selected by the user in the form of a DataFrame. If agg_function is specified, then it 
@@ -230,7 +226,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'file_access_count': agg_function})
             return dataframe
             
-    def function_count(self, rank: List[int]=None, agg_function=None):
+    def function_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
         """
         Identical to the previous one. Only instead of groupby file, it groupby function.
 
@@ -258,7 +254,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'function_count': agg_function})
             return dataframe
 
-    def function_time(self, rank: List[int]=None, agg_function=None):
+    def function_time(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
         """
         Identical to the previous one. Only instead of aggregating by count, it 
         aggregating by sum of the time.
@@ -285,8 +281,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'time': agg_function})
             return dataframe
 
-
-    def function_count_by_library(self, rank: List[int]=None, agg_function=None):
+    def function_count_by_library(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
         """
         Count the number of function calls from mpi, hdf5 and posix. Same implementation to previous
         ones. But it first check the library for each function call, and then groupby the library.
@@ -331,11 +326,9 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'library_call_count': agg_function})
             return dataframe
 
-    
-    
-    def io_volume(self, by_rank: bool=False, by_file: bool=False):
+    def io_volume(self, by_rank: Optional[bool]=False, by_file: Optional[bool]=False):
         """
-        Compute io volume in different granularity. By default it returns the io volume of the whole run.
+        Compute I/O volumes at different granularities. By default it returns the io volume of the whole run.
         If by_rank is True, return a dataframe where each row corresponds to a rank and has the io volumn 
         for it. If by_file is True, return a dataframe where each row corresponds to a file and has its io 
         volumn. If both are Ture, return a multi-index dataframe where each row corresponds to a file accessed
@@ -360,7 +353,7 @@ class IOFrame:
         dataframe = self.groupby_aggregate(groupby_columns, rank=None, agg_dict={'io_volume': np.sum}, drop=True)
         return dataframe
 
-    def percentage(self, function_type: str='io', by_rank: bool=False, by_file: bool=False):
+    def percentage(self, function_type: str='io', by_rank: Optional[bool]=False, by_file: Optional[bool]=False):
         """
         Compute the percentage of time spent in a type of functions.
         By default it returns the percentage of io time vs the whole run.

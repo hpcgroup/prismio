@@ -172,11 +172,6 @@ class RecorderReader:
             'end_timestamp': [], 
             'time': [], 
             'file_count': [],
-            # 'filenames': [],
-            # 'file_sizes': [],
-            # 'filemap': [], 
-            # 'filemap_to_strs': [],
-            # 'function_count': [],
             'total_records': []
         }
 
@@ -186,11 +181,6 @@ class RecorderReader:
             metadata_as_dict['end_timestamp'].append(self.reader.LMs[rank].end_timestamp)
             metadata_as_dict['time'].append(self.reader.LMs[rank].end_timestamp - self.reader.LMs[rank].start_timestamp)
             metadata_as_dict['file_count'].append(self.reader.LMs[rank].num_files)
-            # metadata_as_dict['filenames'].append(self.reader.LMs[rank].filenames)
-            # metadata_as_dict['file_sizes'].append(self.reader.LMs[rank].file_sizes)
-            # metadata_as_dict['filemap'].append(self.reader.LMs[rank].filemap)
-            # metadata_as_dict['filemap_to_strs'].append(self.reader.LMs[rank].filemap_to_strs)
-            # metadata_as_dict['function_count'].append(self.reader.LMs[rank].function_count)
             metadata_as_dict['total_records'].append(self.reader.LMs[rank].total_records)
 
         metadata = pd.DataFrame.from_dict(metadata_as_dict)
