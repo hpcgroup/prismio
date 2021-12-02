@@ -351,6 +351,9 @@ class IOFrame:
         if not groupby_columns:
             return self.dataframe['io_volume'].sum()
         dataframe = self.groupby_aggregate(groupby_columns, rank=None, agg_dict={'io_volume': np.sum}, drop=True)
+        if by_rank and by_file:
+            new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+            dataframe = dataframe.reindex(new_index).fillna(0)
         if (by_rank and by_file and agg_over_ranks):
             dataframe = dataframe.groupby(level=[0]).agg({'io_volume': agg_over_ranks})
         return dataframe
