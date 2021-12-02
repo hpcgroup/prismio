@@ -23,7 +23,7 @@ class IOFramePlotter:
             yerr = df[['ymin', 'ymax']].T.to_numpy()
             plt.rcParams['errorbar.capsize'] = 10
             sns.barplot(x='function_name', y='mean', data=df, yerr=yerr, ec='black')
-            plt.xticks(rotation = 45)
+            plt.xticks(rotation = 90)
             plt.ylabel('count')
             plt.xlabel('rank')
             plt.title("function count")
@@ -55,7 +55,7 @@ class IOFramePlotter:
                 sns.barplot(x='rank', y='function_count', hue='function_name', data=df, ec='black')
         
         if function_major:
-            plt.xticks(rotation = 45)
+            plt.xticks(rotation = 90)
         else:
             plt.xticks(rotation = 0)
         plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
@@ -80,7 +80,7 @@ class IOFramePlotter:
             yerr = df[['ymin', 'ymax']].T.to_numpy()
             plt.rcParams['errorbar.capsize'] = 10
             sns.barplot(x='function_name', y='mean', data=df, yerr=yerr, ec='black')
-            plt.xticks(rotation = 45)
+            plt.xticks(rotation = 90)
             plt.ylabel('time')
             plt.xlabel('rank')
             plt.title("function time")
@@ -112,7 +112,7 @@ class IOFramePlotter:
                 sns.barplot(x='rank', y='time', hue='function_name', data=df, ec='black')
         
         if function_major:
-            plt.xticks(rotation = 45)
+            plt.xticks(rotation = 90)
         else:
             plt.xticks(rotation = 0)
         plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
