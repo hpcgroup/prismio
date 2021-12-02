@@ -326,7 +326,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'library_call_count': agg_function})
             return dataframe
 
-    def io_volume(self, by_rank: Optional[bool]=False, by_file: Optional[bool]=False):
+    def io_volume(self, by_rank: Optional[bool]=False, by_file: Optional[bool]=False, agg_over_ranks: Optional[Callable]=None):
         """
         Compute I/O volumes at different granularities. By default it returns the io volume of the whole run.
         If by_rank is True, return a dataframe where each row corresponds to a rank and has the io volumn 
@@ -344,13 +344,15 @@ class IOFrame:
         """
 
         groupby_columns = []
-        if by_rank:
-            groupby_columns.append('rank')
         if by_file:
             groupby_columns.append('file_name')
+        if by_rank:
+            groupby_columns.append('rank')
         if not groupby_columns:
             return self.dataframe['io_volume'].sum()
         dataframe = self.groupby_aggregate(groupby_columns, rank=None, agg_dict={'io_volume': np.sum}, drop=True)
+        if (by_rank and by_file and agg_over_ranks):
+            dataframe = dataframe.groupby(level=[0]).agg({'io_volume': agg_over_ranks})
         return dataframe
 
     def percentage(self, function_type: str='io', by_rank: Optional[bool]=False, by_file: Optional[bool]=False):
