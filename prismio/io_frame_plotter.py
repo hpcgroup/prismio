@@ -124,3 +124,61 @@ class IOFramePlotter:
         else:
             plt.show()
         plt.clf()
+
+    def plot_io_volume(self, aggregate=True, file_major=True, stacked=False, sort=True, ascending=False, save=False, filename='io_volume'):
+        if aggregate:
+            if file_major:
+                df = self.io_frame.io_volume(by_file=True)
+                df.reset_index(inplace=True)
+                sns.barplot(x='file_name', y='io_volume', data=df)
+                plt.xticks(rotation = 90)
+                plt.xlabel('file_name')
+            else:
+                df = self.io_frame.io_volume(by_rank=True)
+                df.reset_index(inplace=True)
+                sns.barplot(x='rank', y='io_volume', data=df)
+                plt.xlabel('rank')
+            
+            plt.ylabel('io_volume')
+            plt.title("io_volume")
+
+            if save:
+                plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
+            else:
+                plt.show()
+            plt.clf()
+            return
+        
+        df = self.io_frame.io_volume(by_file=True, by_rank=True)
+
+        if stacked:
+            if file_major:
+                df = df.swaplevel()
+            df = df.unstack(fill_value=0)
+            df.columns = df.columns.droplevel()
+            for rank in df.columns.to_list():
+                df[rank] = df[rank] / df[rank].sum()
+            df=df.T
+            df.plot(kind='bar', stacked=True, ec='black')
+        else:
+            df.reset_index(inplace=True)
+            if sort:
+                df.sort_values('io_volume', ascending=ascending, inplace=True)
+            if file_major:
+                sns.barplot(x='file_name', y='io_volume', hue='rank', data=df, ec='black')
+            else:
+                sns.barplot(x='rank', y='io_volume', hue='file_name', data=df, ec='black')
+        
+        if file_major:
+            plt.xticks(rotation = 90)
+        else:
+            plt.xticks(rotation = 0)
+        plt.legend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
+        plt.ylabel('io_volume')
+        plt.xlabel('rank')
+        plt.title("io_volume")
+        if save:
+            plt.savefig(self.save_dir + '/' + filename, bbox_inches='tight')
+        else:
+            plt.show()
+        plt.clf()
