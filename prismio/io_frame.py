@@ -70,7 +70,7 @@ class IOFrame:
         print("Warning: filtering dataframe may cause inconsistency in metadata!")
         return IOFrame(dataframe, self.metadata)
 
-    def groupby_aggregate(self, groupby_columns: List[str], rank: Optional[list]=None, agg_dict: Optional[dict]=None, filter_lambda: Optional[Callable[..., bool]]=None, drop: Optional[bool]=False, dropna: Optional[bool]=False):
+    def groupby_aggregate(self, groupby_columns: List[str], rank: Optional[list]=None, agg_dict: Optional[dict]=None, filter: Optional[Callable[..., bool]]=None, drop: Optional[bool]=False, dropna: Optional[bool]=False):
         """
         Return a dataframe after groupby and aggregate operations on the dataframe of this IOFrame.
 
@@ -79,7 +79,7 @@ class IOFrame:
             rank (list): Ranks the user wants to keep. Other ranks will be filtered out in the result.
                 If it is None, then keep all ranks.
             agg_dict (dictionary): aggregation functions for some columns
-            filter_lambda (function): function used to filter rows before groupby
+            filter (function): function used to filter rows before groupby
             drop: If true, drop columns not specified in agg_dict. Otherwise keep all columns in the result.
             dropna: used by groupby, decide whether to include NaN as a group.
 
@@ -108,8 +108,8 @@ class IOFrame:
         if rank is not None:
             dataframe = self.dataframe[self.dataframe['rank'].isin(rank)]
             # dataframe = dataframe.copy(deep=True)
-        if filter_lambda is not None:
-            dataframe = dataframe[self.dataframe.apply(filter_lambda, axis = 1)]
+        if filter is not None:
+            dataframe = dataframe[self.dataframe.apply(filter, axis = 1)]
             dataframe = dataframe.reset_index()
             dataframe = dataframe.drop('index', axis=1)
 
@@ -137,7 +137,21 @@ class IOFrame:
         
         return agg_dataframe
     
-    def file_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
+    def file_summary(self):
+        """
+        Organize file information (num of access, io_volume, time spent) to a dataframe
+        
+        Args:
+
+        Return:
+            A multi-index dataframe containing information of a file operated by a rank for all files and ranks.
+
+        """
+        dataframe = self.groupby_aggregate(['file_name','rank','function_type'], agg_dict={'file_name': 'count', 'io_volume': np.sum, 'time': np.sum}, drop=True, dropna=True)
+        dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
+        return dataframe
+
+    def file_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False):
         """
         Depending on input arguments, return the number of files for ranks selected by the
         user in the form of a DataFrame. It contains the number of files touched (read or written) 
@@ -172,7 +186,7 @@ class IOFrame:
         #     return agg_function(result)
 
         # groupby rank, then count the number of unique file names
-        dataframe = self.groupby_aggregate(['rank'], rank=rank, agg_dict={'file_name': 'nunique'}, drop=True)
+        dataframe = self.groupby_aggregate(['rank'], rank=rank, agg_dict={'file_name': 'nunique'}, filter=filter, drop=True, dropna=dropna)
         dataframe = dataframe.rename(columns={'file_name': 'file_count'})
 
         if agg_function == None:
@@ -181,7 +195,7 @@ class IOFrame:
         else:
             return agg_function(dataframe)
 
-    def file_access_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
+    def file_access_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False):
         """
         Depending on input arguments, return the number of accesses of each file in each rank
         selected by the user in the form of a DataFrame. If agg_function is specified, then it 
@@ -214,7 +228,10 @@ class IOFrame:
         """
         
         # groupby file name and rank, then count the number of each file name
-        dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'file_name': 'count'}, drop=True)
+        if rank_major:
+            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'file_name': 'count'}, filter=filter, drop=True, dropna=dropna)
+        else:
+            dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'file_name': 'count'}, filter=filter, drop=True, dropna=dropna)
         dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
         new_index = pd.MultiIndex.from_product(dataframe.index.levels)
         dataframe = dataframe.reindex(new_index).fillna(0)
@@ -226,7 +243,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'file_access_count': agg_function})
             return dataframe
             
-    def function_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
+    def function_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False):
         """
         Identical to the previous one. Only instead of groupby file, it groupby function.
 
@@ -242,7 +259,10 @@ class IOFrame:
         """
         
         # groupby function name and rank, then count the number of each function name
-        dataframe = self.groupby_aggregate(['function_name', 'rank'], rank=rank, agg_dict={'function_name': 'count'}, drop=True)
+        if rank_major:
+            dataframe = self.groupby_aggregate(['rank', 'function_name'], rank=rank, agg_dict={'function_name': 'count'}, filter=filter, drop=True, dropna=dropna)
+        else:
+            dataframe = self.groupby_aggregate(['function_name', 'rank'], rank=rank, agg_dict={'function_name': 'count'}, filter=filter, drop=True, dropna=dropna)
         dataframe = dataframe.rename(columns={'function_name': 'function_count'})
         new_index = pd.MultiIndex.from_product(dataframe.index.levels)
         dataframe = dataframe.reindex(new_index).fillna(0)
@@ -254,7 +274,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'function_count': agg_function})
             return dataframe
 
-    def function_time(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
+    def function_time(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False):
         """
         Identical to the previous one. Only instead of aggregating by count, it 
         aggregating by sum of the time.
@@ -269,8 +289,11 @@ class IOFrame:
 
         """
        
-        # groupby function name and rank, then sum the runtime 
-        dataframe = self.groupby_aggregate(['function_name', 'rank'], rank=rank, agg_dict={'time': 'sum'}, drop=True)
+        # groupby function name and rank, then sum the runtime
+        if rank_major: 
+            dataframe = self.groupby_aggregate(['rank', 'function_name'], rank=rank, agg_dict={'time': 'sum'}, filter=filter, drop=True, dropna=dropna)
+        else:
+            dataframe = self.groupby_aggregate(['function_name', 'rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter, drop=True, dropna=dropna)
         new_index = pd.MultiIndex.from_product(dataframe.index.levels)
         dataframe = dataframe.reindex(new_index).fillna(0)
 
@@ -281,7 +304,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'time': agg_function})
             return dataframe
 
-    def function_count_by_library(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None):
+    def function_count_by_library(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False):
         """
         Count the number of function calls from mpi, hdf5 and posix. Same implementation to previous
         ones. But it first check the library for each function call, and then groupby the library.
@@ -310,8 +333,10 @@ class IOFrame:
         self.dataframe['library'] = self.dataframe['function_name'].apply(lambda function: check_library(function))
         
         # groupby library name and rank, then count the number of functions in each library
-        dataframe = self.groupby_aggregate(['library', 'rank'], rank=rank, agg_dict={'library': 'count'}, drop=True)
-        
+        if rank_major:
+            dataframe = self.groupby_aggregate(['rank', 'library'], rank=rank, agg_dict={'library': 'count'}, filter=filter, drop=True, dropna=dropna)
+        else:
+            dataframe = self.groupby_aggregate(['library', 'rank'], rank=rank, agg_dict={'library': 'count'}, filter=filter, drop=True, dropna=dropna)
         # drop the new column to maintain the original dataframe
         self.dataframe.drop(['library'], axis=1)
         
@@ -326,7 +351,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'library_call_count': agg_function})
             return dataframe
 
-    def io_volume(self, by_rank: Optional[bool]=False, by_file: Optional[bool]=False, agg_over_ranks: Optional[Callable]=None):
+    def io_volume(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False):
         """
         Compute I/O volumes at different granularities. By default it returns the io volume of the whole run.
         If by_rank is True, return a dataframe where each row corresponds to a rank and has the io volumn 
@@ -342,23 +367,21 @@ class IOFrame:
             A dataframe or a number depending on the granularity.
 
         """
+        if rank_major: 
+            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'io_volume': 'sum'}, filter=filter, drop=True, dropna=dropna)
+        else:
+            dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'io_volume': 'sum'}, filter=filter, drop=True, dropna=dropna)
+        new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+        dataframe = dataframe.reindex(new_index).fillna(0)
 
-        groupby_columns = []
-        if by_file:
-            groupby_columns.append('file_name')
-        if by_rank:
-            groupby_columns.append('rank')
-        if not groupby_columns:
-            return self.dataframe['io_volume'].sum()
-        dataframe = self.groupby_aggregate(groupby_columns, rank=None, agg_dict={'io_volume': np.sum}, drop=True)
-        if by_rank and by_file:
-            new_index = pd.MultiIndex.from_product(dataframe.index.levels)
-            dataframe = dataframe.reindex(new_index).fillna(0)
-        if (by_rank and by_file and agg_over_ranks):
-            dataframe = dataframe.groupby(level=[0]).agg({'io_volume': agg_over_ranks})
-        return dataframe
+        if agg_function is None:
+            return dataframe
+        # group by function name and apply agg_function over ranks if it's not None
+        else:
+            dataframe = dataframe.groupby(level=[0]).agg({'io_volume': agg_function})
+            return dataframe
 
-    def percentage(self, function_type: str='io', by_rank: Optional[bool]=False, by_file: Optional[bool]=False):
+    def function_time_by_type(self, function_type: str='write,read,other_io', rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False):
         """
         Compute the percentage of time spent in a type of functions.
         By default it returns the percentage of io time vs the whole run.
@@ -377,49 +400,39 @@ class IOFrame:
             A dataframe or a number depending on the granularity.
 
         """
+        if filter is None:
+            filter = lambda x: True
 
-        if function_type == 'io':
-            function_type = 'write,read,other_io'
-        if by_rank and not by_file:
-            dataframe = self.groupby_aggregate(['rank'], rank=None, agg_dict={'time': np.sum}, filter_lambda=lambda x: x['function_type'] in function_type, drop=True)
-            dataframe = dataframe.join(self.metadata['time'], lsuffix='_io', rsuffix='_total')
-            dataframe['percentage'] = dataframe['time_io'] / dataframe['time_total']
-            return dataframe
-        
-        if by_file and not by_rank:
-            total_runtime = self.metadata['end_timestamp'].max() - self.metadata['start_timestamp'].min()
-            dataframe = self.groupby_aggregate(['file_name'], rank=None, agg_dict={'time': np.sum}, filter_lambda=lambda x: x['function_type'] in function_type, drop=True)
-            dataframe['percentage'] = dataframe['time'] / total_runtime
-            return dataframe
-        
-        if by_file and by_rank:
-            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=None, agg_dict={'time': np.sum}, filter_lambda=lambda x: x['function_type'] in function_type, drop=True)
+        if rank_major: 
+            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in function_type), drop=True, dropna=dropna)
+        else:
+            dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in function_type), drop=True, dropna=dropna)
+       
+        new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+        dataframe = dataframe.reindex(new_index).fillna(0)
+
+        if agg_function is None:
             dataframe = dataframe.reset_index()
-            dataframe = dataframe.merge(self.metadata[['rank', 'time']], on=['rank'], suffixes=('_io_this_rank', '_total_this_rank'))
-            dataframe['percentage'] = dataframe['time_io_this_rank'] / dataframe['time_total_this_rank']
-            dataframe = dataframe.set_index(['rank', 'file_name'])
+            dataframe = dataframe.merge(self.metadata[['rank', 'time']], on=['rank'], suffixes=('_\'' + function_type + '\'_this_rank', '_total_this_rank'))
+            dataframe['percentage'] = dataframe['time_\'' + function_type + '\'_this_rank'] / dataframe['time_total_this_rank']
+            if rank_major:
+                dataframe = dataframe.set_index(['rank', 'file_name'])
+            else:
+                dataframe = dataframe.set_index(['file_name', 'rank'])
             return dataframe
-        
-        total_runtime = self.metadata['time'].sum()    
-        time = self.dataframe[self.dataframe.apply(lambda x: x['function_type'] in function_type, axis=1)]['time'].sum()
-        return time / total_runtime
-        
-    def file_info(self):
-        """
-        Organize file information (num of access, io_volume, time spent) to a dataframe
-        
-        Args:
+        else:
+            dataframe = dataframe.groupby(level=[0]).agg({'time': agg_function})
 
-        Return:
-            A multi-index dataframe containing information of a file operated by a rank for all files and ranks.
+            if rank_major: 
+                dataframe = dataframe.join(self.metadata['time'], lsuffix='_\'' + function_type + '\'', rsuffix='_total')
+                dataframe['percentage'] = dataframe['time_\'' + function_type + '\''] / dataframe['time_total']
+                return dataframe
+            else:
+                total_runtime = self.metadata['end_timestamp'].max() - self.metadata['start_timestamp'].min()
+                dataframe['percentage'] = dataframe['time'] / total_runtime
+                return dataframe
 
-        """
-        dataframe = self.groupby_aggregate(['file_name','rank','function_type'], agg_dict={'file_name': 'count', 'io_volume': np.sum, 'time': np.sum}, drop=True, dropna=True)
-        dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
-        return dataframe
-
-
-    def shared_files(self):
+    def shared_files(self, dropna: Optional[bool]=False):
         """
         Organize shared file information to a dataframe. Besides num of access, io_volume, time spent, include number
         of ranks that share the file
@@ -430,22 +443,27 @@ class IOFrame:
             A multi-index dataframe containing information of a file shared by some ranks for all files.
 
         """
-        dataframe = self.groupby_aggregate(['file_name', 'function_type'], agg_dict={'rank': 'nunique', 'file_name': 'count', 'io_volume': np.sum, 'time': np.sum}, drop=True, dropna=True)
+        dataframe = self.groupby_aggregate(['file_name', 'function_type'], agg_dict={'rank': 'nunique', 'file_name': 'count', 'io_volume': np.sum}, drop=True, dropna=dropna)
         dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
         dataframe = dataframe.rename(columns={'rank': 'num_ranks'})
         return dataframe
 
-    def rank_involved_IO(self):
-        """
-        Organize rank information to a dataframe.
+    def is_shared_io(self):
+
+        def is_keep(file_name):
+            if file_name != file_name: # check if it is NaN
+                return False
+            file_ignore = ['/dev/', 'stdout', 'stdin', 'stderr']
+            for file in file_ignore:
+                if file_name in file:
+                    return False
+            return True
+
+        shared_files = self.shared_files()
+        shared_files = shared_files.reset_index()
+        shared_files = shared_files[shared_files.apply(lambda x: is_keep(x['file_name']), axis = 1)]
+        if shared_files['num_ranks'].max() > 1:
+            return True
+        else:
+            return False
         
-        Args:
-
-        Return:
-            A multi-index dataframe containing information of a rank.
-
-        """
-        dataframe = self.groupby_aggregate(['rank','file_name','function_type'], agg_dict={'file_name': 'count', 'io_volume': np.sum, 'time': np.sum}, drop=True, dropna=False)
-        dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
-        return dataframe
-    
