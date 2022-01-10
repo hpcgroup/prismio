@@ -195,7 +195,7 @@ class IOFrame:
         else:
             return agg_function(dataframe)
 
-    def file_access_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False):
+    def file_access_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
         """
         Depending on input arguments, return the number of accesses of each file in each rank
         selected by the user in the form of a DataFrame. If agg_function is specified, then it 
@@ -232,9 +232,12 @@ class IOFrame:
             dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'file_name': 'count'}, filter=filter, drop=True, dropna=dropna)
         else:
             dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'file_name': 'count'}, filter=filter, drop=True, dropna=dropna)
+        
         dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
-        new_index = pd.MultiIndex.from_product(dataframe.index.levels)
-        dataframe = dataframe.reindex(new_index).fillna(0)
+        
+        if complement:
+            new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+            dataframe = dataframe.reindex(new_index).fillna(0)
 
         if agg_function is None:
             return dataframe
@@ -243,7 +246,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'file_access_count': agg_function})
             return dataframe
             
-    def function_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False):
+    def function_count(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
         """
         Identical to the previous one. Only instead of groupby file, it groupby function.
 
@@ -263,9 +266,12 @@ class IOFrame:
             dataframe = self.groupby_aggregate(['rank', 'function_name'], rank=rank, agg_dict={'function_name': 'count'}, filter=filter, drop=True, dropna=dropna)
         else:
             dataframe = self.groupby_aggregate(['function_name', 'rank'], rank=rank, agg_dict={'function_name': 'count'}, filter=filter, drop=True, dropna=dropna)
+        
         dataframe = dataframe.rename(columns={'function_name': 'function_count'})
-        new_index = pd.MultiIndex.from_product(dataframe.index.levels)
-        dataframe = dataframe.reindex(new_index).fillna(0)
+        
+        if complement:
+            new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+            dataframe = dataframe.reindex(new_index).fillna(0)
 
         # group by function name and apply agg_function over ranks if it's not None
         if agg_function is None:
@@ -274,7 +280,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'function_count': agg_function})
             return dataframe
 
-    def function_time(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False):
+    def function_time(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
         """
         Identical to the previous one. Only instead of aggregating by count, it 
         aggregating by sum of the time.
@@ -294,8 +300,10 @@ class IOFrame:
             dataframe = self.groupby_aggregate(['rank', 'function_name'], rank=rank, agg_dict={'time': 'sum'}, filter=filter, drop=True, dropna=dropna)
         else:
             dataframe = self.groupby_aggregate(['function_name', 'rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter, drop=True, dropna=dropna)
-        new_index = pd.MultiIndex.from_product(dataframe.index.levels)
-        dataframe = dataframe.reindex(new_index).fillna(0)
+        
+        if complement:
+            new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+            dataframe = dataframe.reindex(new_index).fillna(0)
 
         if agg_function is None:
             return dataframe
@@ -304,7 +312,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'time': agg_function})
             return dataframe
 
-    def function_count_by_library(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False):
+    def function_count_by_library(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
         """
         Count the number of function calls from mpi, hdf5 and posix. Same implementation to previous
         ones. But it first check the library for each function call, and then groupby the library.
@@ -341,8 +349,10 @@ class IOFrame:
         self.dataframe.drop(['library'], axis=1)
         
         dataframe = dataframe.rename(columns={'library': 'library_call_count'})
-        new_index = pd.MultiIndex.from_product(dataframe.index.levels)
-        dataframe = dataframe.reindex(new_index).fillna(0)
+        
+        if complement:
+            new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+            dataframe = dataframe.reindex(new_index).fillna(0)
 
         # group by library name and apply agg_function over ranks if it's not None
         if agg_function is None:
@@ -351,7 +361,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'library_call_count': agg_function})
             return dataframe
 
-    def io_volume(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False):
+    def io_volume(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
         """
         Compute I/O volumes at different granularities. By default it returns the io volume of the whole run.
         If by_rank is True, return a dataframe where each row corresponds to a rank and has the io volumn 
@@ -371,8 +381,10 @@ class IOFrame:
             dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'io_volume': 'sum'}, filter=filter, drop=True, dropna=dropna)
         else:
             dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'io_volume': 'sum'}, filter=filter, drop=True, dropna=dropna)
-        new_index = pd.MultiIndex.from_product(dataframe.index.levels)
-        dataframe = dataframe.reindex(new_index).fillna(0)
+        
+        if complement:
+            new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+            dataframe = dataframe.reindex(new_index).fillna(0)
 
         if agg_function is None:
             return dataframe
@@ -381,7 +393,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'io_volume': agg_function})
             return dataframe
 
-    def function_time_by_type(self, function_type: str='write,read,other_io', rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False):
+    def function_time_by_type(self, function_type: str='write,read,other_io', rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
         """
         Compute the percentage of time spent in a type of functions.
         By default it returns the percentage of io time vs the whole run.
@@ -408,8 +420,9 @@ class IOFrame:
         else:
             dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in function_type), drop=True, dropna=dropna)
        
-        new_index = pd.MultiIndex.from_product(dataframe.index.levels)
-        dataframe = dataframe.reindex(new_index).fillna(0)
+        if complement:
+            new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+            dataframe = dataframe.reindex(new_index).fillna(0)
 
         if agg_function is None:
             dataframe = dataframe.reset_index()
@@ -454,8 +467,8 @@ class IOFrame:
             if file_name != file_name: # check if it is NaN
                 return False
             file_ignore = ['/dev/', 'stdout', 'stdin', 'stderr']
-            for file in file_ignore:
-                if file_name in file:
+            for ignore in file_ignore:
+                if ignore in file_name:
                     return False
             return True
 
@@ -466,4 +479,28 @@ class IOFrame:
             return True
         else:
             return False
+
+    def io_bandwidth(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=True, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
+        if rank_major: 
+            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in 'write,read,other_io'), drop=True, dropna=dropna)
+        else:
+            dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in 'write,read,other_io'), drop=True, dropna=dropna)
+        
+        if complement:
+            new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+            dataframe = dataframe.reindex(new_index).fillna(0)
+
+        dataframe['io_bandwidth'] = dataframe['io_volume'] / dataframe['time']
+
+        if agg_function is None:
+            return dataframe
+        else:
+            dataframe = dataframe.groupby(level=[0]).agg({'io_volume': agg_function, 'time': agg_function, 'io_bandwidth': agg_function})
+            return dataframe
+
+    def total_io_bandwidth(self):
+        dataframe = self.groupby_aggregate(['rank'], agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in 'write,read,other_io'), drop=True)
+        total_io_volume = dataframe['io_volume'].sum()
+        max_io_time = dataframe['time'].max()
+        return total_io_volume / max_io_time
         
