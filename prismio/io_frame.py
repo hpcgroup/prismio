@@ -11,6 +11,7 @@ or Darshan
 
 
 import dataclasses
+from importlib.metadata import distribution
 import sys
 import os
 
@@ -346,7 +347,7 @@ class IOFrame:
         else:
             dataframe = self.groupby_aggregate(['library', 'rank'], rank=rank, agg_dict={'library': 'count'}, filter=filter, drop=True, dropna=dropna)
         # drop the new column to maintain the original dataframe
-        self.dataframe.drop(['library'], axis=1)
+        self.dataframe.drop(['library'], axis=1, inplace=True)
         
         dataframe = dataframe.rename(columns={'library': 'library_call_count'})
         
@@ -393,7 +394,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'io_volume': agg_function})
             return dataframe
 
-    def function_time_by_type(self, function_type: str='write,read,other_io', rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
+    def io_time(self, io_type: str='write,read,meta', rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
         """
         Compute the percentage of time spent in a type of functions.
         By default it returns the percentage of io time vs the whole run.
@@ -416,9 +417,9 @@ class IOFrame:
             filter = lambda x: True
 
         if rank_major: 
-            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in function_type), drop=True, dropna=dropna)
+            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in io_type), drop=True, dropna=dropna)
         else:
-            dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in function_type), drop=True, dropna=dropna)
+            dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in io_type), drop=True, dropna=dropna)
        
         if complement:
             new_index = pd.MultiIndex.from_product(dataframe.index.levels)
@@ -426,8 +427,8 @@ class IOFrame:
 
         if agg_function is None:
             dataframe = dataframe.reset_index()
-            dataframe = dataframe.merge(self.metadata[['rank', 'time']], on=['rank'], suffixes=('_\'' + function_type + '\'_this_rank', '_total_this_rank'))
-            dataframe['percentage'] = dataframe['time_\'' + function_type + '\'_this_rank'] / dataframe['time_total_this_rank']
+            dataframe = dataframe.merge(self.metadata[['rank', 'time']], on=['rank'], suffixes=('_\'' + io_type + '\'_this_rank', '_total_this_rank'))
+            dataframe['percentage'] = dataframe['time_\'' + io_type + '\'_this_rank'] / dataframe['time_total_this_rank']
             if rank_major:
                 dataframe = dataframe.set_index(['rank', 'file_name'])
             else:
@@ -437,8 +438,8 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'time': agg_function})
 
             if rank_major: 
-                dataframe = dataframe.join(self.metadata['time'], lsuffix='_\'' + function_type + '\'', rsuffix='_total')
-                dataframe['percentage'] = dataframe['time_\'' + function_type + '\''] / dataframe['time_total']
+                dataframe = dataframe.join(self.metadata['time'], lsuffix='_\'' + io_type + '\'', rsuffix='_total')
+                dataframe['percentage'] = dataframe['time_\'' + io_type + '\''] / dataframe['time_total']
                 return dataframe
             else:
                 total_runtime = self.metadata['end_timestamp'].max() - self.metadata['start_timestamp'].min()
@@ -499,8 +500,49 @@ class IOFrame:
             return dataframe
 
     def total_io_bandwidth(self):
-        dataframe = self.groupby_aggregate(['rank'], agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in 'write,read,other_io'), drop=True)
-        total_io_volume = dataframe['io_volume'].sum()
-        max_io_time = dataframe['time'].max()
-        return total_io_volume / max_io_time
+        dataframe = self.io_bandwidth(agg_function='sum')
+        total_io_bandwidth = {}
+        total_io_bandwidth['avg'] = dataframe['io_bandwidth'].mean()
+        total_io_bandwidth['min'] = dataframe['io_bandwidth'].min()
+        total_io_bandwidth['max'] = dataframe['io_bandwidth'].max()
+        return total_io_bandwidth
+
+    def time_distribution(self, rank: Optional[list]=None, filter: Optional[Callable[..., bool]]=None, ratio=False):
+        if filter is None:
+            filter = lambda x: True
         
+        io_time = self.groupby_aggregate(['rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in 'write,read,meta'), drop=True)
+        comm_time = self.groupby_aggregate(['rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] == 'comm'), drop=True)
+        
+        distribution = io_time.join(comm_time['time'], lsuffix = '_io', rsuffix='_comm')
+        distribution["time_compute"] = ""
+        distribution = distribution.join(self.metadata['time'])
+        distribution.rename(columns={'time': 'time_total'}, inplace=True)
+        distribution['time_compute'] = distribution['time_total'] - distribution['time_io'] - distribution['time_comm']
+        
+        if ratio:
+            distribution['time_io'] = distribution['time_io'] / distribution['time_total']
+            distribution['time_comm'] = distribution['time_comm'] / distribution['time_total']
+            distribution['time_compute'] = distribution['time_compute'] / distribution['time_total']
+            distribution['time_total'] = distribution['time_total'] / distribution['time_total']
+
+        return distribution
+        
+    def io_intensity(self, rank: Optional[list]=None, filter: Optional[Callable[..., bool]]=None):
+        time_distribution = self.time_distribution(rank, filter)
+        time_distribution['I/O Intensity'] = time_distribution['time_io'] / time_distribution['time_compute']
+        time_distribution.drop(['time_io', 'time_comm', 'time_compute', 'time_total'], axis=1, inplace=True)
+        return time_distribution
+
+    def io_request_size_distribution(self, bins=[0, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, float('inf')], bin_names=['<1K', '1K-10K', '10K-100K', '100K-1M', '1M-10M', '10M-100M', '100M-1G', '>1G']):
+        dataframe = self.dataframe[self.dataframe['io_volume'] > 0].copy()
+        result = dataframe.groupby(['rank', pd.cut(dataframe.io_volume, bins)]).size().unstack()
+        result.set_axis(bin_names, axis=1, inplace=True)
+        return result
+    
+    def io_request_bandwidth_distribution(self, bins=[0, 1000000, 10000000, 100000000, 1000000000, 10000000000, float('inf')], bin_names=['<1M/s', '1M/s-10M/s', '10M/s-100M/s', '100M/s-1G/s', '1G/s-10G/s', '>10G/s']):
+        dataframe = self.dataframe[self.dataframe['io_volume'] > 0].copy()
+        dataframe['io_bandwidth'] = dataframe['io_volume'] / dataframe['time']
+        result = dataframe.groupby(['rank', pd.cut(dataframe.io_bandwidth, bins)]).size().unstack()
+        result.set_axis(bin_names, axis=1, inplace=True)
+        return result
