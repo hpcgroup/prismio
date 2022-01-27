@@ -26,6 +26,13 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from sklearn.cluster import AffinityPropagation
+from sklearn.cluster import MeanShift
+from sklearn.cluster import KMeans
+from sklearn.cluster import DBSCAN
+from sklearn.cluster import Birch
+from sklearn.cluster import OPTICS
+
 @dataclass
 class IOFrame:
     """
@@ -367,7 +374,7 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'library_call_count': agg_function})
             return dataframe
 
-    def io_volume(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
+    def io_volume(self, unit='auto', rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
         """
         Compute I/O volumes at different granularities. By default it returns the io volume of the whole run.
         If by_rank is True, return a dataframe where each row corresponds to a rank and has the io volumn 
@@ -392,19 +399,30 @@ class IOFrame:
             new_index = pd.MultiIndex.from_product(dataframe.index.levels)
             dataframe = dataframe.reindex(new_index).fillna(0)
 
-        unit = ''
-        avg_io_volume = dataframe['io_volume'].mean()
-        if avg_io_volume < 100:
-            unit = 'B'
-        elif avg_io_volume < 100000:
-            unit = 'KB'
+        if unit == 'auto':
+            avg_io_volume = dataframe['io_volume'].mean()
+            if avg_io_volume < 100:
+                unit = 'B'
+            elif avg_io_volume < 100000:
+                unit = 'KB'
+                dataframe['io_volume'] = dataframe['io_volume'] / 1000
+            elif avg_io_volume < 100000000:
+                unit = 'MB'
+                dataframe['io_volume'] = dataframe['io_volume'] / 1000000
+            else:
+                unit = 'GB'
+                dataframe['io_volume'] = dataframe['io_volume'] / 1000000000
+        elif unit == 'B':
+            pass
+        elif unit == 'KB':
             dataframe['io_volume'] = dataframe['io_volume'] / 1000
-        elif avg_io_volume < 100000000:
-            unit = 'MB'
+        elif unit == 'MB':
             dataframe['io_volume'] = dataframe['io_volume'] / 1000000
-        else:
-            unit = 'GB'
+        elif unit == 'GB':
             dataframe['io_volume'] = dataframe['io_volume'] / 1000000000
+        else:
+            raise KeyError("unit can only be: auto, B, KB, MB, GB")
+        
         dataframe.rename({'io_volume': 'io_volume (' + unit + ')'}, axis=1, inplace=True)
 
         if agg_function is None:
@@ -501,7 +519,7 @@ class IOFrame:
         else:
             return False
 
-    def io_bandwidth(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=True, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
+    def io_bandwidth(self, unit='auto', rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=True, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
         if rank_major: 
             dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in 'write,read,other_io'), drop=True, dropna=dropna)
         else:
@@ -513,19 +531,30 @@ class IOFrame:
 
         dataframe['io_bandwidth'] = dataframe['io_volume'] / dataframe['time']
 
-        unit = ''
-        avg_io_bandwidth = dataframe['io_bandwidth'].mean()
-        if avg_io_bandwidth < 100:
-            unit = 'B/s'
-        elif avg_io_bandwidth < 100000:
-            unit = 'KB/s'
+        if unit == 'auto':
+            avg_io_bandwidth = dataframe['io_bandwidth'].mean()
+            if avg_io_bandwidth < 100:
+                unit = 'B/s'
+            elif avg_io_bandwidth < 100000:
+                unit = 'KB/s'
+                dataframe['io_bandwidth'] = dataframe['io_bandwidth'] / 1000
+            elif avg_io_bandwidth < 100000000:
+                unit = 'MB/s'
+                dataframe['io_bandwidth'] = dataframe['io_bandwidth'] / 1000000
+            else:
+                unit = 'GB/s'
+                dataframe['io_bandwidth'] = dataframe['io_bandwidth'] / 1000000000
+        elif unit == 'B/s':
+            pass
+        elif unit == 'KB/s':
             dataframe['io_bandwidth'] = dataframe['io_bandwidth'] / 1000
-        elif avg_io_bandwidth < 100000000:
-            unit = 'MB/s'
+        elif unit == 'MB/s':
             dataframe['io_bandwidth'] = dataframe['io_bandwidth'] / 1000000
-        else:
-            unit = 'GB/s'
+        elif unit == 'GB/s':
             dataframe['io_bandwidth'] = dataframe['io_bandwidth'] / 1000000000
+        else:
+            raise KeyError("unit can only be: auto, B/s, KB/s, MB/s, GB/s")
+
         dataframe.rename({'io_bandwidth': 'io_bandwidth (' + unit + ')'}, axis=1, inplace=True)
 
         dataframe.drop(['io_volume', 'time'], axis=1, inplace=True)
@@ -536,8 +565,8 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'io_bandwidth (' + unit + ')': agg_function})
             return dataframe
 
-    def total_io_bandwidth(self):
-        dataframe = self.io_bandwidth(agg_function='sum')
+    def total_io_bandwidth(self, unit='MB/s'):
+        dataframe = self.io_bandwidth(unit=unit, agg_function='sum')
         column_name = dataframe.columns[0]
         total_io_bandwidth = {}
         total_io_bandwidth['avg'] = dataframe[column_name].mean()
@@ -585,23 +614,34 @@ class IOFrame:
         result.set_axis(bin_names, axis=1, inplace=True)
         return result
 
-    def io_request_size_timeline(self, rank: Optional[list]=None, style="scatter", separate_ranks=False, num_bins=10):
+    def io_request_size_timeline(self, unit='auto', rank: Optional[list]=None, style="scatter", separate_ranks=False, num_bins=10):
         dataframe = self.dataframe[self.dataframe['io_volume'] > 0].copy()
         plt.figure()
 
-        unit = ''
-        avg_io_volume = dataframe['io_volume'].mean()
-        if avg_io_volume < 100:
-            unit = 'B'
-        elif avg_io_volume < 100000:
-            unit = 'KB'
+        if unit == 'auto':
+            avg_io_volume = dataframe['io_volume'].mean()
+            if avg_io_volume < 100:
+                unit = 'B'
+            elif avg_io_volume < 100000:
+                unit = 'KB'
+                dataframe['io_volume'] = dataframe['io_volume'] / 1000
+            elif avg_io_volume < 100000000:
+                unit = 'MB'
+                dataframe['io_volume'] = dataframe['io_volume'] / 1000000
+            else:
+                unit = 'GB'
+                dataframe['io_volume'] = dataframe['io_volume'] / 1000000000
+        elif unit == 'B':
+            pass
+        elif unit == 'KB':
             dataframe['io_volume'] = dataframe['io_volume'] / 1000
-        elif avg_io_volume < 100000000:
-            unit = 'MB'
+        elif unit == 'MB':
             dataframe['io_volume'] = dataframe['io_volume'] / 1000000
-        else:
-            unit = 'GB'
+        elif unit == 'GB':
             dataframe['io_volume'] = dataframe['io_volume'] / 1000000000
+        else:
+            raise KeyError("unit can only be: auto, B, KB, MB, GB")
+        
         dataframe.rename({'io_volume': 'io_volume (' + unit + ')'}, axis=1, inplace=True)
 
         if style == "scatter":
@@ -615,7 +655,7 @@ class IOFrame:
             else:
                 sns.lineplot(x='tstart', y='io_volume (' + unit + ')', data=dataframe)
         elif style == "hist":
-            bins = np.linspace(dataframe['tstart'].min(), dataframe['tstart'].max(), 10)
+            bins = np.linspace(dataframe['tstart'].min(), dataframe['tstart'].max(), num_bins)
             if separate_ranks:
                 dataframe = dataframe.groupby(['rank', pd.cut(dataframe.tstart, bins, include_lowest=True)])['io_volume (' + unit + ')'].sum().unstack().T
             else:
@@ -630,27 +670,38 @@ class IOFrame:
                 dataframe.loc[1::3, 'tstart'] = dataframe['tend']
                 dataframe.loc[2::3, 'tstart'] = float('nan')
                 dataframe.loc[2::3, 'io_volume (' + unit + ')'] = float('nan')
-                plt.plot(dataframe.tstart, dataframe['io_volume (' + unit + ')'], linewidth=5)
+                plt.plot(dataframe.tstart, dataframe['io_volume (' + unit + ')'], linewidth=2)
         else:
             raise KeyError("No " + style + "option for style")
 
-    def io_request_bandwidth_timeline(self, rank: Optional[list]=None, style="scatter", separate_ranks=False, num_bins=10):
+    def io_request_bandwidth_timeline(self, unit='auto', rank: Optional[list]=None, style="scatter", separate_ranks=False, num_bins=10):
         dataframe = self.dataframe[self.dataframe['io_volume'] > 0].copy()
         dataframe['io_bandwidth'] = dataframe['io_volume'] / dataframe['time']
 
-        unit = ''
-        avg_io_bandwidth = dataframe['io_bandwidth'].mean()
-        if avg_io_bandwidth < 100:
-            unit = 'B/s'
-        elif avg_io_bandwidth < 100000:
-            unit = 'KB/s'
+        if unit == 'auto':
+            avg_io_bandwidth = dataframe['io_bandwidth'].mean()
+            if avg_io_bandwidth < 100:
+                unit = 'B/s'
+            elif avg_io_bandwidth < 100000:
+                unit = 'KB/s'
+                dataframe['io_bandwidth'] = dataframe['io_bandwidth'] / 1000
+            elif avg_io_bandwidth < 100000000:
+                unit = 'MB/s'
+                dataframe['io_bandwidth'] = dataframe['io_bandwidth'] / 1000000
+            else:
+                unit = 'GB/s'
+                dataframe['io_bandwidth'] = dataframe['io_bandwidth'] / 1000000000
+        elif unit == 'B/s':
+            pass
+        elif unit == 'KB/s':
             dataframe['io_bandwidth'] = dataframe['io_bandwidth'] / 1000
-        elif avg_io_bandwidth < 100000000:
-            unit = 'MB/s'
+        elif unit == 'MB/s':
             dataframe['io_bandwidth'] = dataframe['io_bandwidth'] / 1000000
-        else:
-            unit = 'GB/s'
+        elif unit == 'GB/s':
             dataframe['io_bandwidth'] = dataframe['io_bandwidth'] / 1000000000
+        else:
+            raise KeyError("unit can only be: auto, B/s, KB/s, MB/s, GB/s")
+
         dataframe.rename({'io_bandwidth': 'io_bandwidth (' + unit + ')'}, axis=1, inplace=True)
 
         plt.figure()
@@ -666,7 +717,7 @@ class IOFrame:
             else:
                 sns.lineplot(x='tstart', y='io_bandwidth (' + unit + ')', data=dataframe)
         elif style == "hist":
-            bins = np.linspace(dataframe['tstart'].min(), dataframe['tstart'].max(), 10)
+            bins = np.linspace(dataframe['tstart'].min(), dataframe['tstart'].max(), num_bins)
             if separate_ranks:
                 dataframe = dataframe.groupby(['rank', pd.cut(dataframe.tstart, bins, include_lowest=True)])['io_bandwidth (' + unit + ')'].mean().unstack().T
             else:
@@ -681,6 +732,58 @@ class IOFrame:
                 dataframe.loc[1::3, 'tstart'] = dataframe['tend']
                 dataframe.loc[2::3, 'tstart'] = float('nan')
                 dataframe.loc[2::3, 'io_bandwidth (' + unit + ')'] = float('nan')
-                plt.plot(dataframe.tstart, dataframe['io_bandwidth (' + unit + ')'], linewidth=5)
+                plt.plot(dataframe.tstart, dataframe['io_bandwidth (' + unit + ')'], linewidth=2)
         else:
             raise KeyError("No " + style + "option for style")
+
+    def mpi_comm_timeline(self, rank: Optional[list]=None, style="scatter"):
+        dataframe = self.dataframe[self.dataframe['function_type'] == 'comm'].copy()
+        plt.figure()
+
+        if style == "scatter":
+            sns.scatterplot(x='tstart', y='rank', data=dataframe)
+        elif style == "interval":
+            dataframe = dataframe.loc[dataframe.index.repeat(3)].copy()
+            dataframe.reset_index(inplace=True)
+            dataframe.loc[1::3, 'tstart'] = dataframe['tend']
+            dataframe.loc[2::3, 'tstart'] = float('nan')
+            dataframe.loc[2::3, 'rank'] = float('nan')
+            plt.plot(dataframe.tstart, dataframe['rank'], linewidth=2)
+        else:
+            raise KeyError("No " + style + "option for style")
+
+    def timeline(self, rank: Optional[list]=None, filter=lambda x: x['function_type'] in 'write,read,meta', style="scatter"):
+        dataframe = self.dataframe[self.dataframe.apply(filter, axis = 1)].copy()
+        plt.figure()
+
+        if style == "scatter":
+            sns.scatterplot(x='tstart', y='rank', data=dataframe)
+        elif style == "interval":
+            dataframe = dataframe.loc[dataframe.index.repeat(3)].copy()
+            dataframe.reset_index(inplace=True)
+            dataframe.loc[1::3, 'tstart'] = dataframe['tend']
+            dataframe.loc[2::3, 'tstart'] = float('nan')
+            dataframe.loc[2::3, 'rank'] = float('nan')
+            plt.plot(dataframe.tstart, dataframe['rank'], linewidth=2)
+        else:
+            raise KeyError("No " + style + "option for style")
+
+    def find_problematic_open(self):
+        dataframe = self.dataframe[self.dataframe['function_name'] == 'open'].copy()
+        X = np.array(dataframe['tstart'])
+        X = np.reshape(X, (-1, 1))
+        X = X * 100
+        brc = Birch(n_clusters=None)
+        brc.fit(X)
+        dataframe['label'] = brc.labels_
+        sns.scatterplot(x='tstart', y='rank', data=dataframe, hue='label')
+        std = dataframe.groupby(['label'])['time'].std()
+        mean = dataframe.groupby(['label'])['time'].mean()
+        min = dataframe.groupby(['label'])['time'].min()
+        max = dataframe.groupby(['label'])['time'].max()
+        ratio = max / min
+        print(ratio)
+        if ratio > 10:
+            return True
+        else:
+            return False
