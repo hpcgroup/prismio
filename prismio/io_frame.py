@@ -119,10 +119,12 @@ class IOFrame:
         # so self.dataframe is not changed.
         dataframe = self.dataframe
         if rank is not None:
-            dataframe = self.dataframe[self.dataframe['rank'].isin(rank)]
+            dataframe = self.dataframe[self.dataframe['rank'].isin(rank)].copy()
+            dataframe = dataframe.reset_index()
+            dataframe = dataframe.drop('index', axis=1)
             # dataframe = dataframe.copy(deep=True)
         if filter is not None:
-            dataframe = dataframe[self.dataframe.apply(filter, axis = 1)]
+            dataframe = dataframe[self.dataframe.apply(filter, axis = 1)].copy()
             dataframe = dataframe.reset_index()
             dataframe = dataframe.drop('index', axis=1)
 
@@ -495,9 +497,9 @@ class IOFrame:
             A multi-index dataframe containing information of a file shared by some ranks for all files.
 
         """
-        dataframe = self.groupby_aggregate(['file_name', 'function_type'], agg_dict={'rank': 'nunique', 'file_name': 'count', 'io_volume': np.sum}, drop=True, dropna=dropna)
+        dataframe = self.groupby_aggregate(['file_name', 'function_type'], agg_dict={'rank': 'unique', 'file_name': 'count', 'io_volume': np.sum}, drop=True, dropna=dropna)
         dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
-        dataframe = dataframe.rename(columns={'rank': 'num_ranks'})
+        dataframe = dataframe.rename(columns={'rank': 'shared_ranks'})
         return dataframe
 
     def is_shared_io(self):
@@ -511,9 +513,10 @@ class IOFrame:
                     return False
             return True
 
-        shared_files = self.shared_files()
+        shared_files = self.shared_files(dropna=True)
         shared_files = shared_files.reset_index()
         shared_files = shared_files[shared_files.apply(lambda x: is_keep(x['file_name']), axis = 1)]
+        shared_files['num_ranks'] = shared_files['shared_ranks'].apply(lambda x: len(x))
         if shared_files['num_ranks'].max() > 1:
             return True
         else:
@@ -581,24 +584,27 @@ class IOFrame:
         io_time = self.groupby_aggregate(['rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in 'write,read,meta'), drop=True)
         comm_time = self.groupby_aggregate(['rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] == 'comm'), drop=True)
         
-        distribution = io_time.join(comm_time['time'], lsuffix = '_io', rsuffix='_comm')
-        distribution["time_compute"] = ""
-        distribution = distribution.join(self.metadata['time'])
-        distribution.rename(columns={'time': 'time_total'}, inplace=True)
-        distribution['time_compute'] = distribution['time_total'] - distribution['time_io'] - distribution['time_comm']
+        io_time.rename(columns={'time': 'io_time'}, inplace=True)
+        comm_time.rename(columns={'time': 'comm_time'}, inplace=True)
+
+        distribution = pd.concat([io_time, comm_time['comm_time']], axis=1)
+        distribution["compute_time"] = ""
+        distribution = pd.concat([distribution, self.metadata['time']], axis=1)
+        distribution.rename(columns={'time': 'total_time'}, inplace=True)
+        distribution['compute_time'] = distribution['total_time'] - distribution['io_time'] - distribution['comm_time']
         
         if ratio:
-            distribution['time_io'] = distribution['time_io'] / distribution['time_total']
-            distribution['time_comm'] = distribution['time_comm'] / distribution['time_total']
-            distribution['time_compute'] = distribution['time_compute'] / distribution['time_total']
-            distribution['time_total'] = distribution['time_total'] / distribution['time_total']
+            distribution['io_time'] = distribution['io_time'] / distribution['total_time']
+            distribution['comm_time'] = distribution['comm_time'] / distribution['total_time']
+            distribution['compute_time'] = distribution['compute_time'] / distribution['total_time']
+            distribution['total_time'] = distribution['total_time'] / distribution['total_time']
 
         return distribution
-        
+    
     def io_intensity(self, rank: Optional[list]=None, filter: Optional[Callable[..., bool]]=None):
         time_distribution = self.time_distribution(rank, filter)
-        time_distribution['I/O Intensity'] = time_distribution['time_io'] / time_distribution['time_compute']
-        time_distribution.drop(['time_io', 'time_comm', 'time_compute', 'time_total'], axis=1, inplace=True)
+        time_distribution['I/O Intensity'] = time_distribution['io_time'] / time_distribution['compute_time']
+        time_distribution.drop(['io_time', 'comm_time', 'compute_time', 'total_time'], axis=1, inplace=True)
         return time_distribution
 
     def io_request_size_distribution(self, bins=[0, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, float('inf')], bin_names=['<1K', '1K-10K', '10K-100K', '100K-1M', '1M-10M', '10M-100M', '100M-1G', '>1G']):
@@ -735,6 +741,8 @@ class IOFrame:
                 plt.plot(dataframe.tstart, dataframe['io_bandwidth (' + unit + ')'], linewidth=2)
         else:
             raise KeyError("No " + style + "option for style")
+        plt.xlabel('time (s)')
+        plt.ylabel('I/O bandwidth (' + unit + ')')
 
     def mpi_comm_timeline(self, rank: Optional[list]=None, style="scatter"):
         dataframe = self.dataframe[self.dataframe['function_type'] == 'comm'].copy()
@@ -767,6 +775,9 @@ class IOFrame:
             plt.plot(dataframe.tstart, dataframe['rank'], linewidth=2)
         else:
             raise KeyError("No " + style + "option for style")
+        
+        plt.xlabel('time (s)')
+        plt.ylabel('rank')
 
     def find_problematic_open(self):
         dataframe = self.dataframe[self.dataframe['function_name'] == 'open'].copy()
@@ -783,7 +794,7 @@ class IOFrame:
         max = dataframe.groupby(['label'])['time'].max()
         ratio = max / min
         print(ratio)
-        if ratio > 10:
+        if ratio.max() > 10:
             return True
         else:
             return False
