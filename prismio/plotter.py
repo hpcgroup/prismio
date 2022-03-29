@@ -11,7 +11,8 @@ def assign_labels(title, xlabel, ylabel, legend_title, rotation):
     plt.xticks(rotation=rotation)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.legend(bbox_to_anchor=(BBOX_X, BBOX_Y), loc=LEGEND_LOC, title=legend_title)
+    if legend_title != "":
+        plt.legend(bbox_to_anchor=(BBOX_X, BBOX_Y), loc=LEGEND_LOC, title=legend_title)
 
 def save_plot(file_name=None):
     if file_name:
@@ -82,22 +83,24 @@ def plot_stacked(dataframe, function_major=False, file_name=None):
 
 def plot_aggregate(dataframe, sort=True, ascending=False, file_name=None):
     df = dataframe
+    title = df.columns[0][0]
+    columns = [x[1] for x in df.columns]
 
     xlabel = df.index.names[0]
     df.columns = df.columns.droplevel()
     df.reset_index(inplace=True)
 
     if sort:
-        df.sort_values('mean', ascending=ascending, inplace=True)
+        df.sort_values(columns[1], ascending=ascending, inplace=True)
 
-    df['ymin'] = df['mean'] - df['min']
-    df['ymax'] = df['max'] - df['mean']
+    df['ymin'] = df[columns[1]] - df[columns[0]]
+    df['ymax'] = df[columns[2]] - df[columns[1]]
     yerr = df[['ymin', 'ymax']].T.to_numpy()
 
     plt.rcParams['errorbar.capsize'] = 10
-    sns.barplot(x=xlabel, y='mean', data=df, yerr=yerr, ec='black')
+    sns.barplot(x=xlabel, y=columns[1], data=df, yerr=yerr, ec='black')
 
-    output_plot(rotation=90)
+    output_plot(title=title, rotation=90, file_name=file_name)
 
 
 def plot_function_count(io_frame, function_major=False, sort=True, ascending=False, file_name=None):
