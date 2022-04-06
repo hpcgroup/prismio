@@ -467,7 +467,7 @@ class IOFrame:
 
         if agg_function is None:
             dataframe = dataframe.reset_index()
-            dataframe = dataframe.merge(self.metadata[['rank', 'time']], on=['rank'], suffixes=('_\'' + io_type + '\'_this_rank', '_total_this_rank'))
+            dataframe = dataframe.merge(self.metadata.set_index('rank')[['time']], on='rank', suffixes=('_\'' + io_type + '\'_this_rank', '_total_this_rank'))
             dataframe['percentage'] = dataframe['time_\'' + io_type + '\'_this_rank'] / dataframe['time_total_this_rank']
             if rank_major:
                 dataframe = dataframe.set_index(['rank', 'file_name'])
@@ -475,15 +475,22 @@ class IOFrame:
                 dataframe = dataframe.set_index(['file_name', 'rank'])
             return dataframe
         else:
-            dataframe = dataframe.groupby(level=[0]).agg({'time': agg_function})
-
+            dataframe.rename(columns={"time": 'time_\'' + io_type + '\'_this_rank'}, inplace=True)
+            dataframe = dataframe.groupby(level=[0]).agg({'time_\'' + io_type + '\'_this_rank': agg_function})
+            dataframe.columns = dataframe.columns.to_flat_index()
             if rank_major: 
-                dataframe = dataframe.join(self.metadata['time'], lsuffix='_\'' + io_type + '\'', rsuffix='_total')
-                dataframe['percentage'] = dataframe['time_\'' + io_type + '\''] / dataframe['time_total']
+                dataframe = dataframe.merge(self.metadata.set_index('rank')[['time']], on='rank')
+                dataframe.rename(columns={"time": "time_total_this_rank"}, inplace=True)
+                # print(dataframe)
+                for column in dataframe.columns:
+                    if column != 'rank' and column != 'time_total_this_rank':
+                        dataframe[column[0] + '-' + column[1] + '(percentage)'] = dataframe[column] / dataframe['time_total_this_rank']
                 return dataframe
             else:
                 total_runtime = self.metadata['end_timestamp'].max() - self.metadata['start_timestamp'].min()
-                dataframe['percentage'] = dataframe['time'] / total_runtime
+                for column in dataframe.columns:
+                    dataframe[column[0] + '-' + column[1] + '(percentage)'] = dataframe[column] / total_runtime
+                dataframe['total_runtime'] = total_runtime
                 return dataframe
 
     def shared_files(self, dropna: Optional[bool]=False):
