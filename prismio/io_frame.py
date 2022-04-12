@@ -14,7 +14,6 @@ import dataclasses
 from importlib.metadata import distribution
 import sys
 import os
-from this import d
 
 from pandas.core.frame import DataFrame
 from typing import Callable, List, Dict, Optional
