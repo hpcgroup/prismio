@@ -81,23 +81,41 @@ def plot_stacked(dataframe, function_major=False, file_name=None):
 
     output_plot(title, xlabel, ylabel, legend_title, rotation=rotation)
 
-def plot_aggregate(dataframe, sort=True, ascending=False, file_name=None):
+def plot_yerr(dataframe, sort=True, ascending=False, file_name=None):
     df = dataframe
-    title = df.columns[0][0]
-    columns = [x[1] for x in df.columns]
+    title = "Yerr of " + df.columns[0][0].title().replace("_", " ")
 
-    xlabel = df.index.names[0]
     df.columns = df.columns.droplevel()
     df.reset_index(inplace=True)
 
-    if sort:
-        df.sort_values(columns[1], ascending=ascending, inplace=True)
 
-    df['ymin'] = df[columns[1]] - df[columns[0]]
-    df['ymax'] = df[columns[2]] - df[columns[1]]
+    if sort:
+        df.sort_values('mean', ascending=ascending, inplace=True)
+
+    df['ymin'] = df['mean'] - df['min']
+    df['ymax'] = df['max'] - df['min']
     yerr = df[['ymin', 'ymax']].T.to_numpy()
 
     plt.rcParams['errorbar.capsize'] = 10
-    sns.barplot(x=xlabel, y=columns[1], data=df, yerr=yerr, ec='black')
+    sns.barplot(x=df.columns[0], y='min', data=df, yerr=yerr, ec='black')
 
-    output_plot(title=title, rotation=90, file_name=file_name)
+    output_plot(title, rotation=90, file_name=file_name)
+
+def plot_aggregate(dataframe, sort=True, ascending=False, file_name=None):
+    df = dataframe
+    title = df.columns[0][0].title().replace("_", " ")
+
+    df.columns = df.columns.droplevel()
+    df.reset_index(inplace=True)
+
+    xlabel, ylabel = df.columns[0], df.columns[1]
+
+    title = "Aggregate " + ylabel.title() + " of " + title
+
+    if sort:
+        df.sort_values(ylabel, ascending=ascending, inplace=True)
+
+    sns.barplot(x=xlabel, y=ylabel, data=df, ec='black')
+    output_plot(title, xlabel, ylabel, rotation=90)
+
+
