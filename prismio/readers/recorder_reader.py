@@ -213,8 +213,26 @@ class RecorderReader:
         for rank in range(self.reader.GM.total_ranks):
             for record in all_records[rank]:
                 fd_to_filename = fd_to_filenames[rank]
-                function_args = record.args_to_strs()
                 func_name = self.reader.funcs[record.func_id]
+                '''
+                  File "/Users/henryxu/Desktop/Research/prismio/prismio/readers/recorder_reader.py", line 216, in read
+                    function_args = record.args_to_strs()
+                  File "/Users/henryxu/miniconda3/lib/python3.9/site-packages/recorder_viz/creader_wrapper.py", line 57, in args_to_strs
+                    arg_strs[i] = self.args[i].decode('utf-8')
+                AttributeError: 'NoneType' object has no attribute 'decode'
+                '''
+                try:
+                    function_args = record.args_to_strs()
+                except UnicodeDecodeError:
+                    continue
+                except AttributeError:
+                    print(func_name)
+                    sys.stdout.flush()
+                    print(record)
+                    sys.stdout.flush()
+                    function_args = ['None', 'None', 'None', 'None', 'None', 'None']
+                    # continue
+                
                 io_size = None
                 if 'fdopen' in func_name:
                     fd = record.res
@@ -278,11 +296,11 @@ class RecorderReader:
                 elif 'read' in func_name:
                     records_as_dict['function_type'].append('read')
                 elif func_name in Posix_IO_functions or func_name in MPI_IO_functions or func_name in HDF5_IO_functions:
-                    records_as_dict['function_type'].append('other_io')
+                    records_as_dict['function_type'].append('meta')
                 elif func_name in MPI_communication_functions:
                     records_as_dict['function_type'].append('comm')
                 else:
-                    records_as_dict['function_type'].append('other')
+                    records_as_dict['function_type'].append('compute')
 
         dataframe = pd.DataFrame.from_dict(records_as_dict)
 
