@@ -11,7 +11,6 @@ or Darshan
 
 
 import dataclasses
-from importlib.metadata import distribution
 import sys
 import os
 
@@ -24,13 +23,6 @@ from dataclasses import dataclass
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
-
-from sklearn.cluster import AffinityPropagation
-from sklearn.cluster import MeanShift
-from sklearn.cluster import KMeans
-from sklearn.cluster import DBSCAN
-from sklearn.cluster import Birch
-from sklearn.cluster import OPTICS
 
 @dataclass
 class IOFrame:
@@ -474,8 +466,7 @@ class IOFrame:
                 dataframe = dataframe.set_index(['file_name', 'rank'])
             return dataframe
         else:
-            dataframe.rename(columns={"time": 'time_\'' + io_type + '\'_this_rank'}, inplace=True)
-            dataframe = dataframe.groupby(level=[0]).agg({'time_\'' + io_type + '\'_this_rank': agg_function})
+            dataframe = dataframe.groupby(level=[0]).agg({'time': agg_function})
             dataframe.columns = dataframe.columns.to_flat_index()
             if rank_major: 
                 dataframe = dataframe.merge(self.metadata.set_index('rank')[['time']], on='rank')
@@ -506,6 +497,7 @@ class IOFrame:
         dataframe = self.groupby_aggregate(['file_name', 'function_type'], agg_dict={'rank': 'unique', 'file_name': 'count', 'io_volume': np.sum}, drop=True, dropna=dropna)
         dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
         dataframe = dataframe.rename(columns={'rank': 'shared_ranks'})
+        dataframe['num_ranks'] = dataframe.apply(lambda x: len(x.shared_ranks), axis=1)
         return dataframe
 
     def is_shared_io(self):
@@ -768,39 +760,24 @@ class IOFrame:
 
     def timeline(self, rank: Optional[list]=None, filter=lambda x: x['function_type'] in 'write,read,meta', style="scatter"):
         dataframe = self.dataframe[self.dataframe.apply(filter, axis = 1)].copy()
+        groups = dataframe.groupby('function_name')
+        # functions = list(dataframe['function_name'].unique())
         plt.figure()
-
+        ax = plt.subplot(111)
         if style == "scatter":
-            sns.scatterplot(x='tstart', y='rank', data=dataframe)
+            sns.scatterplot(x='tstart', y='rank', data=dataframe, hue='function_name')
         elif style == "interval":
-            dataframe = dataframe.loc[dataframe.index.repeat(3)].copy()
-            dataframe.reset_index(inplace=True)
-            dataframe.loc[1::3, 'tstart'] = dataframe['tend']
-            dataframe.loc[2::3, 'tstart'] = float('nan')
-            dataframe.loc[2::3, 'rank'] = float('nan')
-            plt.plot(dataframe.tstart, dataframe['rank'], linewidth=2)
+            for name, group in groups:
+                group = group.loc[group.index.repeat(3)].copy()
+                group.reset_index(inplace=True)
+                group.loc[1::3, 'tstart'] = group['tend']
+                group.loc[2::3, 'tstart'] = float('nan')
+                group.loc[2::3, 'rank'] = float('nan')
+                plt.plot(group.tstart, group['rank'], linewidth=2, label=name)
+            ax.legend(bbox_to_anchor=(1.04,1), loc="upper left")
         else:
             raise KeyError("No " + style + "option for style")
         
         plt.xlabel('time (s)')
         plt.ylabel('rank')
-
-    def find_problematic_open(self):
-        dataframe = self.dataframe[self.dataframe['function_name'] == 'open'].copy()
-        X = np.array(dataframe['tstart'])
-        X = np.reshape(X, (-1, 1))
-        X = X * 100
-        brc = Birch(n_clusters=None)
-        brc.fit(X)
-        dataframe['label'] = brc.labels_
-        sns.scatterplot(x='tstart', y='rank', data=dataframe, hue='label')
-        std = dataframe.groupby(['label'])['time'].std()
-        mean = dataframe.groupby(['label'])['time'].mean()
-        min = dataframe.groupby(['label'])['time'].min()
-        max = dataframe.groupby(['label'])['time'].max()
-        ratio = max / min
-        print(ratio)
-        if ratio.max() > 10:
-            return True
-        else:
-            return False
+            
