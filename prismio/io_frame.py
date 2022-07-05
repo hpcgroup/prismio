@@ -504,19 +504,9 @@ class IOFrame:
         return dataframe
 
     def is_shared_io(self):
-
-        def is_keep(file_name):
-            if file_name != file_name: # check if it is NaN
-                return False
-            file_ignore = ['/dev/', 'stdout', 'stdin', 'stderr']
-            for ignore in file_ignore:
-                if ignore in file_name:
-                    return False
-            return True
-
         shared_files = self.shared_files(dropna=True)
         shared_files = shared_files.reset_index()
-        shared_files = shared_files[shared_files.apply(lambda x: is_keep(x['file_name']), axis = 1)]
+        shared_files = shared_files[shared_files.apply(lambda x: self.is_keep(x['file_name']), axis = 1)]
         shared_files['num_ranks'] = shared_files['shared_ranks'].apply(lambda x: len(x))
         if shared_files['num_ranks'].max() > 1:
             return True
@@ -525,9 +515,9 @@ class IOFrame:
 
     def io_bandwidth(self, unit='auto', rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=True, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
         if rank_major: 
-            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in 'write,read,other_io'), drop=True, dropna=dropna)
+            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in 'write,read,other_io' and self.is_keep(x['file_name'])), drop=True, dropna=dropna)
         else:
-            dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in 'write,read,other_io'), drop=True, dropna=dropna)
+            dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in 'write,read,other_io' and self.is_keep(x['file_name'])), drop=True, dropna=dropna)
         
         if complement:
             new_index = pd.MultiIndex.from_product(dataframe.index.levels)
@@ -767,4 +757,98 @@ class IOFrame:
         
         plt.xlabel('time (s)')
         plt.ylabel('rank')
-            
+
+    def byteTo(self, value, unit='auto'):
+        if unit == 'auto':
+            if value < 100:
+                unit = 'B'
+            elif value < 100000:
+                unit = 'KB'
+            elif value < 100000000:
+                unit = 'MB'
+            else:
+                unit = 'GB'
+
+        if unit == 'B':
+            pass
+        elif unit == 'KB':
+            value = value / 1024
+        elif unit == 'MB':
+            value = value / 1024 / 1024
+        elif unit == 'GB':
+            value = value / 1024 / 1024 / 1024
+        else:
+            raise KeyError("unit can only be: auto, B, KB, MB, GB")
+
+        return str(value) + ' ' + unit
+
+    def getAPI(self):
+        def check_interface(function):
+            if 'H5' in function and ('write' in function or 'read' in function):
+                return 'HDF5'
+            elif 'MPI' in function and ('write' in function or 'read' in function):
+                return 'MPIIO'
+            elif 'write' in function or 'read' in function:
+                return 'POSIX'
+            else:
+                return 'Not IO'
+
+        self.dataframe['I/O interface'] = self.dataframe['function_name'].apply(lambda function: check_interface(function))
+        interface = self.dataframe.groupby('I/O interface')['function_name'].count()
+        
+        max = -1
+        api = ''
+        interface['POSIX'] = interface['POSIX'] - 2 * interface['MPIIO']
+
+        for i in range(len(interface)):
+            if interface[i] > max and interface.index[i] != 'Not IO':
+                max = interface[i]
+                api = interface.index[i]
+        return api
+    
+    def is_keep(self, file_name):
+        if file_name == None:
+            return False
+        if file_name != file_name: # check if it is NaN
+            return False
+        file_ignore = ['/dev/', '/etc', 'stdout', 'stdin', 'stderr']
+        for ignore in file_ignore:
+            if ignore in file_name:
+                return False
+        return True
+
+    def getTransferSize(self):
+        df = self.dataframe[self.dataframe.apply(lambda x: self.is_keep(x['file_name']), axis = 1)]
+
+        transferSize = df['io_volume'].mean()
+        return self.byteTo(transferSize)
+
+    def isCollective(self):
+        df = self.dataframe[self.dataframe['function_name'].str.contains('MPI')]
+        df = df[df['function_name'].str.contains('read') | df['function_name'].str.contains('write')]
+        collective = df[df['function_name'].str.contains('all') | df['function_name'].str.contains('ordered')]
+        print(len(collective))
+        print(len(df))
+        return len(collective) / len(df) > 0.9
+
+    def isFsyncPerWrite(self):
+        count = 0
+        df = self.dataframe[self.dataframe.apply(lambda x: self.is_keep(x['file_name']), axis = 1)]
+        df = df[~df['function_name'].str.contains('MPI')]
+        df = df[~df['function_name'].str.contains('HDF5')]
+
+        for name, grp in df.groupby('rank'):
+            prevRow = None
+            for index, row in grp.iterrows():
+                if prevRow is not None:
+                    if 'write' in prevRow['function_name'] and (row['function_name'] == 'fsync'):
+                        count += 1
+                prevRow = row
+        
+        num_write = len(df[df['function_name'].str.contains('write')])
+        print(count)
+        print(num_write)
+        return count / num_write > 0.5
+
+    def isFilePerProc(self):
+        return self.is_shared_io()
