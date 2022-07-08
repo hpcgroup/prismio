@@ -515,7 +515,7 @@ class IOFrame:
                 "rank": "nunique",
                 "file_name": "count",
                 "io_volume": np.sum,
-                "time": np.sum
+                "time": np.sum,
             },
             drop=True,
             dropna=True,
