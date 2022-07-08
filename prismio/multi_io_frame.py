@@ -16,8 +16,8 @@ import numpy as np
 import pandas as pd
 from prismio.io_frame import IOFrame
 
-class MultiIOFrame():
-    
+class MultiIOFrame:
+
     def __init__(self, directories):
         """
         Args:
@@ -28,7 +28,9 @@ class MultiIOFrame():
 
         """
         if type(directories) is not list and type(directories) is not str:
-            sys.stderr.write("error: please pass in a root directory or a list of tracing directories\n")
+            sys.stderr.write(
+                "error: please pass in a root directory or a list of tracing directories\n"
+            )
             return(-1)
         
         if type(directories) is str:
