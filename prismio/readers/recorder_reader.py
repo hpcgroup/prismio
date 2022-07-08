@@ -11,10 +11,6 @@ dataframe, and create the IOFrame for recorder tracing files.
 """
 
 
-import sys
-import os
-from csv import writer
-import numpy as np
 import pandas as pd
 from prismio.io_frame import IOFrame
 import recorder_viz
@@ -128,7 +124,7 @@ class RecorderReader:
             "ftello",
         ]
 
-        MPI_functions = [
+        MPI_functions = [  # flake8: noqa: F841
             "MPI_Comm_size",
             "MPI_Comm_rank",
             "MPI_Get_processor_name",

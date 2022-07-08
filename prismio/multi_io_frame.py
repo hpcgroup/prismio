@@ -4,15 +4,12 @@
 # SPDX-License-Identifier: MIT
 
 """
-The prismio.multi_io_frame module aims to provide functionalities of analysing
-and comparing multiple runs. 
-
+The prismio.multi_io_frame module aims to provide functionalities of
+analysing and comparing multiple runs.
 """
 
 import sys
 import glob
-import numpy as np
-import pandas as pd
 from prismio.io_frame import IOFrame
 
 
