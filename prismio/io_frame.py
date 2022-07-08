@@ -270,7 +270,7 @@ class IOFrame:
             drop=True,
         )
         dataframe = dataframe.rename(columns={"function_name": "function_count"})
-        
+
         # group by function name and apply agg_function over ranks if it's not None
         if agg_function is None:
             return dataframe
@@ -396,7 +396,7 @@ class IOFrame:
 
     def percentage(
         self,
-        function_type: str="io",
+        function_type: str = "io",
         by_rank: Optional[bool] = False,
         by_file: Optional[bool] = False,
     ):
@@ -468,8 +468,7 @@ class IOFrame:
                 suffixes=("_io_this_rank", "_total_this_rank"),
             )
             dataframe["percentage"] = (
-                dataframe["time_io_this_rank"]
-                / dataframe["time_total_this_rank"]
+                dataframe["time_io_this_rank"] / dataframe["time_total_this_rank"]
             )
             dataframe = dataframe.set_index(["rank", "file_name"])
             return dataframe
@@ -512,7 +511,12 @@ class IOFrame:
         """
         dataframe = self.groupby_aggregate(
             ["file_name", "function_type"],
-            agg_dict={"rank": "nunique", "file_name": "count", "io_volume": np.sum, "time": np.sum},
+            agg_dict={
+                "rank": "nunique",
+                "file_name": "count",
+                "io_volume": np.sum,
+                "time": np.sum
+            },
             drop=True,
             dropna=True,
         )
@@ -531,11 +535,10 @@ class IOFrame:
 
         """
         dataframe = self.groupby_aggregate(
-            ["rank","file_name", "function_type"],
+            ["rank", "file_name", "function_type"],
             agg_dict={"file_name": "count", "io_volume": np.sum, "time": np.sum},
             drop=True,
             dropna=False,
         )
         dataframe = dataframe.rename(columns={"file_name": "file_access_count"})
         return dataframe
-

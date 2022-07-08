@@ -19,6 +19,7 @@ import pandas as pd
 from prismio.io_frame import IOFrame
 import recorder_viz
 
+
 class RecorderReader:
     """
     The reader class for recorder data. It can read in recorder trace files,
@@ -37,7 +38,7 @@ class RecorderReader:
 
         """
         self.reader = recorder_viz.RecorderReader(log_dir)
-        
+
     def read(self):
         """
         Call sort_records and then find_filenames. After it has all information
@@ -498,7 +499,7 @@ class RecorderReader:
                     else:
                         filename = fd_to_filename[fd]
                 else:
-                    filename = None    
+                    filename = None
 
                 records_as_dict["rank"].append(rank)
                 records_as_dict["function_id"].append(record.func_id)
