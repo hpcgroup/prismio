@@ -228,7 +228,7 @@ class IOFrame:
             If rank == None and agg_function != None, it returns a Pandas
             Series that has the number from applying the function on each file
             name across all ranks. For example, if agg_function = np.mean, it
-            returns a series containing the average number of accesses for this 
+            returns a series containing the average number of accesses for this
             file across all ranks.
 
             If rank != None and agg_function != None, it returns a Pandas
