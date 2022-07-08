@@ -124,7 +124,7 @@ class RecorderReader:
             "ftello",
         ]
 
-        MPI_functions = [  # flake8: noqa: F841
+        MPI_functions = [
             "MPI_Comm_size",
             "MPI_Comm_rank",
             "MPI_Get_processor_name",
@@ -209,7 +209,7 @@ class RecorderReader:
             "MPI_Init",
             "MPI_Init_thread",
             "MPI_Finalize",
-        ]
+        ]  # flake8: noqa: F841
 
         MPI_IO_functions = [
             "MPI_File_open",

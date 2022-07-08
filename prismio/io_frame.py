@@ -97,7 +97,8 @@ class IOFrame:
             dropna: used by groupby, decide whether to include NaN as a group.
 
         Return:
-            A dataframe after groupby and aggregate operations on the dataframe of this IOFrame.
+            A dataframe after groupby and aggregate operations on the dataframe
+            of this IOFrame.
 
         """
         # default aggregation functions for all columns
@@ -349,7 +350,8 @@ class IOFrame:
             lambda function: check_library(function)
         )
 
-        # groupby library name and rank, then count the number of functions in each library
+        # groupby library name and rank, then count the number of functions in
+        # each library
         dataframe = self.groupby_aggregate(
             ["library", "rank"], rank=rank, agg_dict={"library": "count"}, drop=True
         )
