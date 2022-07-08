@@ -37,7 +37,8 @@ class IOFrame:
         IOFrame object.
 
         Args:
-            log_dir (str): path to the trace files directory of Recorder the user wants to analyze.
+            log_dir (str): path to the trace files directory of Recorder the
+            user wants to analyze.
 
         Return:
             A IOFrame object corresponding to this trace files directory.
@@ -79,12 +80,20 @@ class IOFrame:
         dataframe of this IOFrame.
 
         Args:
-            groupby_columns (list of strings): the column names the user wants to groupby.
-            rank (list): Ranks the user wants to keep. Other ranks will be filtered out in the result.
-                If it is None, then keep all ranks.
+            groupby_columns (list of strings): the column names the user wants
+            to groupby.
+
+            rank (list): Ranks the user wants to keep. Other ranks will be
+            filtered out in the result.
+            If it is None, then keep all ranks.
+
             agg_dict (dictionary): aggregation functions for some columns
+
             filter_lambda (function): function used to filter rows before groupby
-            drop: If true, drop columns not specified in agg_dict. Otherwise keep all columns in the result.
+
+            drop: If true, drop columns not specified in agg_dict. Otherwise
+            keep all columns in the result.
+
             dropna: used by groupby, decide whether to include NaN as a group.
 
         Return:
@@ -209,19 +218,24 @@ class IOFrame:
             agg_function: (function): aggregation function applying on the result.
 
         Return:
-            If rank == None and agg_function == None, it returns a Pandas DataFrame in which
-            the columns are file names, rows are ranks, and the values are the number of accesses
-            for that file and rank.
-            If rank != None and agg_function == None, it returns a similar Pandas DataFrame but
-            with only user specified ranks (rows).
-            If rank == None and agg_function != None, it returns a Pandas Series that has the number
-            from applying the function on each file name across all ranks. For example, if agg_function =
-            np.mean, it returns a series containing the average number of accesses for this file across
-            all ranks.
-            If rank != None and agg_function != None, it returns a Pandas Series that has the number
-            from applying the function on each file name across selected ranks. For example, if agg_function =
-            np.mean, rank = [1, 3, 5], it returns a series containing the average number of accesses for
-            this file across rank 1, 3, 5.
+            If rank == None and agg_function == None, it returns a Pandas
+            DataFrame in which the columns are file names, rows are ranks, and
+            the values are the number of accesses for that file and rank.
+
+            If rank != None and agg_function == None, it returns a similar
+            Pandas DataFrame but with only user specified ranks (rows).
+
+            If rank == None and agg_function != None, it returns a Pandas
+            Series that has the number from applying the function on each file
+            name across all ranks. For example, if agg_function = np.mean, it
+            returns a series containing the average number of accesses for this 
+            file across all ranks.
+
+            If rank != None and agg_function != None, it returns a Pandas
+            Series that has the number from applying the function on each file
+            name across selected ranks. For example, if agg_function = np.mean,
+            rank = [1, 3, 5], it returns a series containing the average number
+            of accesses for this file across rank 1, 3, 5.
         """
 
         # groupby file name and rank, then count the number of each file name
@@ -251,10 +265,9 @@ class IOFrame:
             agg_function: (function): aggregation function applying on the result.
 
         Return:
-            Identical structure to the previous one, except the value here is the number of function
-            calls for a function in selected ranks. Or avg/min/max accross selected ranks depending
-            on the agg_function
-
+            Identical structure to the previous one, except the value here is
+            the number of function calls for a function in selected ranks. Or
+            avg/min/max accross selected ranks depending on the agg_function
         """
 
         # groupby function name and rank, then count the number of each function name
@@ -287,9 +300,9 @@ class IOFrame:
             agg_function: (function): aggregation function applying on the result.
 
         Return:
-            Identical structure to the previous one, except the value here is the total time of function
-            in selected ranks. Or avg/min/max accross selected ranks depending on the agg_function
-
+            Identical structure to the previous one, except the value here is
+            the total time of function in selected ranks. Or avg/min/max across
+            selected ranks depending on the agg_function
         """
 
         # groupby function name and rank, then sum the runtime
@@ -317,9 +330,9 @@ class IOFrame:
             agg_function: (function): aggregation function applying on the result.
 
         Return:
-            Identical structure to the previous one, except the value here is the number of function
-            calls of a library in selected ranks. Or avg/min/max accross selected ranks depending on
-            the agg_function
+            Identical structure to the previous one, except the value here is
+            the number of function calls of a library in selected ranks. Or
+            avg/min/max accross selected ranks depending on the agg_function
         """
 
         # helper function to check library for a given function
@@ -476,12 +489,14 @@ class IOFrame:
 
     def file_info(self):
         """
-        Organize file information (num of access, io_volume, time spent) to a dataframe
+        Organize file information (num of access, io_volume, time spent) to a
+        dataframe
 
         Args:
 
         Return:
-            A multi-index dataframe containing information of a file operated by a rank for all files and ranks.
+            A multi-index dataframe containing information of a file operated
+            by a rank for all files and ranks.
 
         """
         dataframe = self.groupby_aggregate(
@@ -495,13 +510,14 @@ class IOFrame:
 
     def shared_files(self):
         """
-        Organize shared file information to a dataframe. Besides num of access, io_volume, time spent, include number
-        of ranks that share the file
+        Organize shared file information to a dataframe. Besides num of access,
+        io_volume, time spent, include number of ranks that share the file
 
         Args:
 
         Return:
-            A multi-index dataframe containing information of a file shared by some ranks for all files.
+            A multi-index dataframe containing information of a file shared by
+            some ranks for all files.
 
         """
         dataframe = self.groupby_aggregate(

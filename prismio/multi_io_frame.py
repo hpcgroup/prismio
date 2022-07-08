@@ -17,7 +17,8 @@ class MultiIOFrame:
     def __init__(self, directories):
         """
         Args:
-            directories (list or str): a list of tracing directories or a root directory that contains tracing directories.
+            directories (list or str): a list of tracing directories or a root
+            directory that contains tracing directories.
 
         Return:
             None.
@@ -25,7 +26,8 @@ class MultiIOFrame:
         """
         if type(directories) is not list and type(directories) is not str:
             sys.stderr.write(
-                "error: please pass in a root directory or a list of tracing directories\n"
+                "error: please pass in a root directory or "
+                "a list of tracing directories\n"
             )
             return -1
 

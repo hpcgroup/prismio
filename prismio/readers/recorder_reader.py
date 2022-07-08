@@ -27,11 +27,11 @@ class RecorderReader:
         Use the Recorder creader_wrapper to read in tracing data.
 
         Args:
-            log_dir (string): path to the trace files directory of Recorder the user wants to analyze.
+            log_dir (string): path to the trace files directory of Recorder the
+            user wants to analyze.
 
         Return:
             None.
-
         """
         self.reader = recorder_viz.RecorderReader(log_dir)
 
@@ -45,8 +45,8 @@ class RecorderReader:
             None.
 
         Return:
-            An IOFrame created by trace files of recorder specified by the log_dir of this RecorderReader.
-
+            An IOFrame created by trace files of recorder specified by the
+            log_dir of this RecorderReader.
         """
 
         Posix_IO_functions = [
