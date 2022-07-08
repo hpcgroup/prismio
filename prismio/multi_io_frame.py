@@ -9,15 +9,14 @@ and comparing multiple runs.
 
 """
 
-
 import sys
 import glob
 import numpy as np
 import pandas as pd
 from prismio.io_frame import IOFrame
 
-class MultiIOFrame:
 
+class MultiIOFrame:
     def __init__(self, directories):
         """
         Args:
@@ -31,7 +30,7 @@ class MultiIOFrame:
             sys.stderr.write(
                 "error: please pass in a root directory or a list of tracing directories\n"
             )
-            return(-1)
+            return -1
         
         if type(directories) is str:
             directories = glob.glob(directories + "/*")
