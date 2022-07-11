@@ -834,3 +834,83 @@ class IOFrame:
 
     def isFilePerProc(self):
         return self.is_shared_io()
+
+    def accessPattern(self, within_rank=False):
+        rdwrdf = self.dataframe[(self.dataframe['I/O_type'] == 'read') | (self.dataframe['I/O_type'] == 'write')]
+
+        result = None
+        if within_rank:
+            result = {
+                'file_name':[],
+                'rank': [],
+                'consecutive': [],
+                'sequential': [],
+                'random': [],
+            }
+        else:
+            result = {
+                'file_name':[],
+                'consecutive': [],
+                'sequential': [],
+                'random': [],
+            }
+
+        for file_name in rdwrdf['file_name'].unique():
+            if file_name == '__unknown__' or file_name is None:
+                continue
+            filedf = rdwrdf[rdwrdf['file_name'] == file_name]
+            if within_rank:
+                for rank in range(self.reader.GM.total_ranks):
+                    consecutive = 0
+                    sequential = 0
+                    random = 0
+
+                    df = filedf[filedf['rank'] == rank]
+                    prevRow = None
+                    for index, row in df.iteritems():
+                        if prevRow == None:
+                            prevRow = row
+                            continue
+                        offset1, offset2 = prevRow['offset'], row['offset']
+                        ioVolume1, ioVolume2 = prevRow['io_volume'], row['io_volume']
+                        if (offset1 + ioVolume1) == offset2:
+                            consecutive += 1
+                        elif (offset1 + ioVolume1) < offset2:
+                            sequential += 1
+                        else:
+                            random += 1
+                        prevRow = row
+
+                    result['file_name'].append(file_name)
+                    result['rank'].append(rank)
+                    result['consecutive'].append(consecutive)
+                    result['sequential'].append(sequential)
+                    result['random'].append(random)
+            else:
+                consecutive = 0
+                sequential = 0
+                random = 0
+
+                prevRow = None
+                for index, row in filedf.iterrows():
+                    if prevRow is None:
+                        prevRow = row
+                        continue
+                    offset1, offset2 = prevRow['offset'], row['offset']
+                    ioVolume1, ioVolume2 = prevRow['io_volume'], row['io_volume']
+                    if (offset1 + ioVolume1) == offset2:
+                        consecutive += 1
+                    elif (offset1 + ioVolume1) < offset2:
+                        sequential += 1
+                    else:
+                        random += 1
+                    prevRow = row
+
+                result['file_name'].append(file_name)
+                result['consecutive'].append(consecutive)
+                result['sequential'].append(sequential)
+                result['random'].append(random)
+
+        result = pd.DataFrame.from_dict(result)
+        return result
+
