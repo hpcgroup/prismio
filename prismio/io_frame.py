@@ -53,6 +53,18 @@ class IOFrame:
         from prismio.readers.recorder_reader import RecorderReader
         return RecorderReader(log_dir).read()
 
+    @staticmethod
+    def is_keep(file_name):
+        if file_name == None:
+            return False
+        if file_name != file_name: # check if it is NaN
+            return False
+        file_ignore = ['/dev/', '/etc', 'stdout', 'stdin', 'stderr']
+        for ignore in file_ignore:
+            if ignore in file_name:
+                return False
+        return True
+
     def copy(self):
         """
         Make a deep copy of this IOFrame
@@ -499,7 +511,7 @@ class IOFrame:
     def is_shared_io(self):
         shared_files = self.shared_files(dropna=True)
         shared_files = shared_files.reset_index()
-        shared_files = shared_files[shared_files.apply(lambda x: self.is_keep(x['file_name']), axis = 1)]
+        shared_files = shared_files[shared_files.apply(lambda x: IOFrame.is_keep(x['file_name']), axis = 1)]
         shared_files['num_ranks'] = shared_files['shared_ranks'].apply(lambda x: len(x))
         if shared_files['num_ranks'].max() > 1:
             return True
@@ -508,9 +520,9 @@ class IOFrame:
 
     def io_bandwidth(self, unit='auto', rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=True, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
         if rank_major: 
-            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] == 'I/O' and self.is_keep(x['file_name'])), drop=True, dropna=dropna)
+            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] == 'I/O' and IOFrame.is_keep(x['file_name'])), drop=True, dropna=dropna)
         else:
-            dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] == 'I/O' and self.is_keep(x['file_name'])), drop=True, dropna=dropna)
+            dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] == 'I/O' and IOFrame.is_keep(x['file_name'])), drop=True, dropna=dropna)
         
         if complement:
             new_index = pd.MultiIndex.from_product(dataframe.index.levels)
@@ -787,20 +799,9 @@ class IOFrame:
                 max = interface[i]
                 api = interface.index[i]
         return api
-    
-    def is_keep(self, file_name):
-        if file_name == None:
-            return False
-        if file_name != file_name: # check if it is NaN
-            return False
-        file_ignore = ['/dev/', '/etc', 'stdout', 'stdin', 'stderr']
-        for ignore in file_ignore:
-            if ignore in file_name:
-                return False
-        return True
 
     def getTransferSize(self):
-        df = self.dataframe[self.dataframe.apply(lambda x: self.is_keep(x['file_name']), axis = 1)]
+        df = self.dataframe[self.dataframe.apply(lambda x: IOFrame.is_keep(x['file_name']), axis = 1)]
 
         transferSize = df['io_volume'].mean()
         return self.byteTo(transferSize)
@@ -815,7 +816,7 @@ class IOFrame:
 
     def isFsyncPerWrite(self):
         count = 0
-        df = self.dataframe[self.dataframe.apply(lambda x: self.is_keep(x['file_name']), axis = 1)]
+        df = self.dataframe[self.dataframe.apply(lambda x: IOFrame.is_keep(x['file_name']), axis = 1)]
         df = df[~df['function_name'].str.contains('MPI')]
         df = df[~df['function_name'].str.contains('HDF5')]
 
