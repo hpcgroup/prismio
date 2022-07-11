@@ -920,3 +920,100 @@ class IOFrame:
             result.set_index('file_name', inplace=True)
         return result
 
+    def readWritePattern(self, within_rank=False):
+        rdwrdf = self.dataframe[(self.dataframe['I/O_type'] == 'read') | (self.dataframe['I/O_type'] == 'write')]
+
+        result = None
+        if within_rank:
+            result = {
+                'file_name':[],
+                'rank': [],
+                'RAR': [],
+                'RAW': [],
+                'WAR': [],
+                'WAW': [],
+            }
+            num_ranks = rdwrdf['rank'].nunique()
+        else:
+            result = {
+                'file_name':[],
+                'RAR': [],
+                'RAW': [],
+                'WAR': [],
+                'WAW': [],
+            }
+
+        for file_name in rdwrdf['file_name'].unique():
+            if file_name == '__unknown__' or file_name is None:
+                continue
+            filedf = rdwrdf[rdwrdf['file_name'] == file_name]
+            if within_rank:
+                for rank in range(num_ranks):
+                    RAR = 0
+                    RAW = 0
+                    WAR = 0
+                    WAW = 0
+
+                    df = filedf[filedf['rank'] == rank]
+                    prevRow = None
+                    for index, row in df.iterrows():
+                        if prevRow is None:
+                            prevRow = row
+                            continue
+                        offset1, offset2 = prevRow['offset'], row['offset']
+                        ioVolume1, ioVolume2 = prevRow['io_volume'], row['io_volume']
+                        if offset1 + ioVolume1 > offset2:
+                            if prevRow['I/O_type'] == 'read' and prevRow['I/O_type'] == 'read':
+                                RAR += 1
+                            elif prevRow['I/O_type'] == 'read' and prevRow['I/O_type'] == 'write':
+                                RAW += 1
+                            elif prevRow['I/O_type'] == 'write' and prevRow['I/O_type'] == 'read':
+                                WAR += 1
+                            elif prevRow['I/O_type'] == 'write' and prevRow['I/O_type'] == 'write':
+                                WAW += 1
+                        
+                        prevRow = row
+
+                    result['file_name'].append(file_name)
+                    result['rank'].append(rank)
+                    result['RAR'].append(RAR)
+                    result['RAW'].append(RAW)
+                    result['WAR'].append(WAR)
+                    result['WAW'].append(WAW)
+            else:
+                RAR = 0
+                RAW = 0
+                WAR = 0
+                WAW = 0
+
+                prevRow = None
+                for index, row in filedf.iterrows():
+                    if prevRow is None:
+                        prevRow = row
+                        continue
+                    offset1, offset2 = prevRow['offset'], row['offset']
+                    ioVolume1, ioVolume2 = prevRow['io_volume'], row['io_volume']
+                    if offset1 + ioVolume1 > offset2:
+                        if prevRow['I/O_type'] == 'read' and prevRow['I/O_type'] == 'read':
+                            RAR += 1
+                        elif prevRow['I/O_type'] == 'read' and prevRow['I/O_type'] == 'write':
+                            RAW += 1
+                        elif prevRow['I/O_type'] == 'write' and prevRow['I/O_type'] == 'read':
+                            WAR += 1
+                        elif prevRow['I/O_type'] == 'write' and prevRow['I/O_type'] == 'write':
+                            WAW += 1
+                    
+                    prevRow = row
+
+                result['file_name'].append(file_name)
+                result['RAR'].append(RAR)
+                result['RAW'].append(RAW)
+                result['WAR'].append(WAR)
+                result['WAW'].append(WAW)
+
+        result = pd.DataFrame.from_dict(result)
+        if within_rank:
+            result = result.groupby(['file_name', 'rank']).sum()
+        else:
+            result.set_index('file_name', inplace=True)
+        return result
