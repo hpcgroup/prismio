@@ -156,7 +156,7 @@ class IOFrame:
             A multi-index dataframe containing information of a file operated by a rank for all files and ranks.
 
         """
-        dataframe = self.groupby_aggregate(['file_name','rank','function_type'], agg_dict={'file_name': 'count', 'io_volume': np.sum, 'time': np.sum}, drop=True, dropna=True)
+        dataframe = self.groupby_aggregate(['file_name','rank','I/O_type'], agg_dict={'file_name': 'count', 'io_volume': np.sum, 'time': np.sum}, drop=True, dropna=True)
         dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
         return dataframe
 
@@ -321,10 +321,10 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({'time': agg_function})
             return dataframe
 
-    def function_count_by_library(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
+    def function_count_by_IO_interface(self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
         """
         Count the number of function calls from mpi, hdf5 and posix. Same implementation to previous
-        ones. But it first check the library for each function call, and then groupby the library.
+        ones. But it first check the I/O_interface for each function call, and then groupby the I/O_interface.
 
         Args:
             rank (None or a list): user selected ranks to get file count.
@@ -332,42 +332,30 @@ class IOFrame:
 
         Return:
             Identical structure to the previous one, except the value here is the number of function
-            calls of a library in selected ranks. Or avg/min/max accross selected ranks depending on 
+            calls of a I/O_interface in selected ranks. Or avg/min/max accross selected ranks depending on 
             the agg_function
 
         """
         
-        # helper function to check library for a given function
-        def check_library(function):
-            if 'H5' in function:
-                return 'hdf5'
-            elif 'MPI' in function:
-                return 'mpi'
-            else:
-                return 'posix'
-
-        # check library for each row and put result into a new column 
-        self.dataframe['library'] = self.dataframe['function_name'].apply(lambda function: check_library(function))
-        
-        # groupby library name and rank, then count the number of functions in each library
+        # groupby I/O_interface name and rank, then count the number of functions in each I/O_interface
         if rank_major:
-            dataframe = self.groupby_aggregate(['rank', 'library'], rank=rank, agg_dict={'library': 'count'}, filter=filter, drop=True, dropna=dropna)
+            dataframe = self.groupby_aggregate(['rank', 'I/O_interface'], rank=rank, agg_dict={'I/O_interface': 'count'}, filter=filter, drop=True, dropna=dropna)
         else:
-            dataframe = self.groupby_aggregate(['library', 'rank'], rank=rank, agg_dict={'library': 'count'}, filter=filter, drop=True, dropna=dropna)
+            dataframe = self.groupby_aggregate(['I/O_interface', 'rank'], rank=rank, agg_dict={'I/O_interface': 'count'}, filter=filter, drop=True, dropna=dropna)
         # drop the new column to maintain the original dataframe
-        self.dataframe.drop(['library'], axis=1, inplace=True)
+        self.dataframe.drop(['I/O_interface'], axis=1, inplace=True)
         
-        dataframe = dataframe.rename(columns={'library': 'library_call_count'})
+        dataframe = dataframe.rename(columns={'I/O_interface': 'I/O_interface_count'})
         
         if complement:
             new_index = pd.MultiIndex.from_product(dataframe.index.levels)
             dataframe = dataframe.reindex(new_index).fillna(0)
 
-        # group by library name and apply agg_function over ranks if it's not None
+        # group by I/O_interface name and apply agg_function over ranks if it's not None
         if agg_function is None:
             return dataframe
         else:
-            dataframe = dataframe.groupby(level=[0]).agg({'library_call_count': agg_function})
+            dataframe = dataframe.groupby(level=[0]).agg({'I/O_interface_count': agg_function})
             return dataframe
 
     def io_volume(self, unit='auto', rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
@@ -433,13 +421,13 @@ class IOFrame:
         Compute the percentage of time spent in a type of functions.
         By default it returns the percentage of io time vs the whole run.
         If by_rank is True, return a dataframe where each row corresponds to a rank and has the time spent in
-        function_type vs time spent in that rank. If by_file is True, return a dataframe where each row corresponds 
-        to a file and has its time spent in function_type vs the total runtime (only meaning for if function_type is io) 
+        io_type vs time spent in that rank. If by_file is True, return a dataframe where each row corresponds 
+        to a file and has its time spent in io_type vs the total runtime (only meaningfull if io_type is io) 
         If both are Ture, return a multi-index dataframe where each row corresponds to a file accessed
-        by a rank and its time spent in function_type vs time spent in that rank. (only meaning for if function_type is io) 
+        by a rank and its time spent in io_type vs time spent in that rank. (only meaningful if io_type is io) 
 
         Args:
-            function_type (str): the function type 
+            io_type (str): the function type 
             by_rank (bool): Show io volumn of each rank if true.
             by_file (bool): Show io volumn of each file if true.
 
@@ -451,9 +439,9 @@ class IOFrame:
             filter = lambda x: True
 
         if rank_major: 
-            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in io_type), drop=True, dropna=dropna)
+            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['I/O_type'] in io_type), drop=True, dropna=dropna)
         else:
-            dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in io_type), drop=True, dropna=dropna)
+            dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['I/O_type'] in io_type), drop=True, dropna=dropna)
        
         if complement:
             new_index = pd.MultiIndex.from_product(dataframe.index.levels)
@@ -474,15 +462,20 @@ class IOFrame:
             if rank_major: 
                 dataframe = dataframe.merge(self.metadata.set_index('rank')[['time']], on='rank')
                 dataframe.rename(columns={"time": "time_total_this_rank"}, inplace=True)
-                # print(dataframe)
                 for column in dataframe.columns:
                     if column != 'rank' and column != 'time_total_this_rank':
-                        dataframe[column[0] + '-' + column[1] + '(percentage)'] = dataframe[column] / dataframe['time_total_this_rank']
+                        if type(agg_function) is list:
+                            dataframe[column[0] + '-' + column[1] + ' (percentage)'] = dataframe[column] / dataframe['time_total_this_rank']
+                        else:
+                            dataframe[column + ' (percentage)'] = dataframe[column] / dataframe['time_total_this_rank']
                 return dataframe
             else:
                 total_runtime = self.metadata['end_timestamp'].max() - self.metadata['start_timestamp'].min()
                 for column in dataframe.columns:
-                    dataframe[column[0] + '-' + column[1] + '(percentage)'] = dataframe[column] / total_runtime
+                    if type(agg_function) is list:
+                        dataframe[column[0] + '-' + column[1] + ' (percentage)'] = dataframe[column] / total_runtime
+                    else:
+                        dataframe[column + ' (percentage)'] = dataframe[column] / total_runtime
                 dataframe['total_runtime'] = total_runtime
                 return dataframe
 
@@ -497,7 +490,7 @@ class IOFrame:
             A multi-index dataframe containing information of a file shared by some ranks for all files.
 
         """
-        dataframe = self.groupby_aggregate(['file_name', 'function_type'], agg_dict={'rank': 'unique', 'file_name': 'count', 'io_volume': np.sum}, drop=True, dropna=dropna)
+        dataframe = self.groupby_aggregate(['file_name', 'I/O_type'], agg_dict={'rank': 'unique', 'file_name': 'count', 'io_volume': np.sum}, drop=True, dropna=dropna)
         dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
         dataframe = dataframe.rename(columns={'rank': 'shared_ranks'})
         dataframe['num_ranks'] = dataframe.apply(lambda x: len(x.shared_ranks), axis=1)
@@ -515,9 +508,9 @@ class IOFrame:
 
     def io_bandwidth(self, unit='auto', rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=True, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False):
         if rank_major: 
-            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in 'write,read,other_io' and self.is_keep(x['file_name'])), drop=True, dropna=dropna)
+            dataframe = self.groupby_aggregate(['rank', 'file_name'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] == 'I/O' and self.is_keep(x['file_name'])), drop=True, dropna=dropna)
         else:
-            dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in 'write,read,other_io' and self.is_keep(x['file_name'])), drop=True, dropna=dropna)
+            dataframe = self.groupby_aggregate(['file_name', 'rank'], rank=rank, agg_dict={'io_volume': 'sum', 'time': 'sum'}, filter=filter and (lambda x: x['function_type'] == 'I/O' and self.is_keep(x['file_name'])), drop=True, dropna=dropna)
         
         if complement:
             new_index = pd.MultiIndex.from_product(dataframe.index.levels)
@@ -572,8 +565,8 @@ class IOFrame:
         if filter is None:
             filter = lambda x: True
         
-        io_time = self.groupby_aggregate(['rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] in 'write,read,meta'), drop=True)
-        comm_time = self.groupby_aggregate(['rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] == 'comm'), drop=True)
+        io_time = self.groupby_aggregate(['rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] == 'I/O'), drop=True)
+        comm_time = self.groupby_aggregate(['rank'], rank=rank, agg_dict={'time': 'sum'}, filter=filter and (lambda x: x['function_type'] == 'communication'), drop=True)
         
         io_time.rename(columns={'time': 'io_time'}, inplace=True)
         comm_time.rename(columns={'time': 'comm_time'}, inplace=True)
@@ -783,22 +776,11 @@ class IOFrame:
         return str(value) + ' ' + unit
 
     def getAPI(self):
-        def check_interface(function):
-            if 'H5' in function and ('write' in function or 'read' in function):
-                return 'HDF5'
-            elif 'MPI' in function and ('write' in function or 'read' in function):
-                return 'MPIIO'
-            elif 'write' in function or 'read' in function:
-                return 'POSIX'
-            else:
-                return 'Not IO'
-
-        self.dataframe['I/O interface'] = self.dataframe['function_name'].apply(lambda function: check_interface(function))
-        interface = self.dataframe.groupby('I/O interface')['function_name'].count()
+        interface = self.dataframe.groupby('I/O_interface')['function_name'].count()
         
         max = -1
         api = ''
-        interface['POSIX'] = interface['POSIX'] - 2 * interface['MPIIO']
+        interface['POSIX'] = interface['POSIX'] - 2 * interface['MPIIO'] # TODO: need a better way to exclude POSIX calls from MPIIO
 
         for i in range(len(interface)):
             if interface[i] > max and interface.index[i] != 'Not IO':
