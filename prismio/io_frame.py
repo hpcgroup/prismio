@@ -839,6 +839,7 @@ class IOFrame:
         rdwrdf = self.dataframe[(self.dataframe['I/O_type'] == 'read') | (self.dataframe['I/O_type'] == 'write')]
 
         result = None
+        num_ranks = 0
         if within_rank:
             result = {
                 'file_name':[],
@@ -847,6 +848,7 @@ class IOFrame:
                 'sequential': [],
                 'random': [],
             }
+            num_ranks = rdwrdf['rank'].nunique()
         else:
             result = {
                 'file_name':[],
@@ -860,15 +862,15 @@ class IOFrame:
                 continue
             filedf = rdwrdf[rdwrdf['file_name'] == file_name]
             if within_rank:
-                for rank in range(self.reader.GM.total_ranks):
+                for rank in range(num_ranks):
                     consecutive = 0
                     sequential = 0
                     random = 0
 
                     df = filedf[filedf['rank'] == rank]
                     prevRow = None
-                    for index, row in df.iteritems():
-                        if prevRow == None:
+                    for index, row in df.iterrows():
+                        if prevRow is None:
                             prevRow = row
                             continue
                         offset1, offset2 = prevRow['offset'], row['offset']
@@ -912,5 +914,9 @@ class IOFrame:
                 result['random'].append(random)
 
         result = pd.DataFrame.from_dict(result)
+        if within_rank:
+            result = result.groupby(['file_name', 'rank']).sum()
+        else:
+            result.set_index('file_name', inplace=True)
         return result
 
