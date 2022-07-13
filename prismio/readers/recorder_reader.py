@@ -508,20 +508,31 @@ class RecorderReader:
                 records_as_dict["return_value"].append(record.res)
                 records_as_dict["file_name"].append(filename)
                 records_as_dict["io_volume"].append(io_size)
-                if "write" in func_name:
-                    records_as_dict["function_type"].append("write")
-                elif "read" in func_name:
-                    records_as_dict["function_type"].append("read")
-                elif (
-                    func_name in Posix_IO_functions
-                    or func_name in MPI_IO_functions
-                    or func_name in HDF5_IO_functions
-                ):
-                    records_as_dict["function_type"].append("other_io")
+                
+                if func_name in Posix_IO_functions or func_name in MPI_IO_functions or func_name in HDF5_IO_functions:
+                    records_as_dict['function_type'].append('I/O')
                 elif func_name in MPI_communication_functions:
-                    records_as_dict["function_type"].append("comm")
+                    records_as_dict['function_type'].append('communication')
                 else:
-                    records_as_dict["function_type"].append("other")
+                    records_as_dict['function_type'].append('compute')
+
+                if 'write' in func_name:
+                    records_as_dict['I/O_type'].append('write')
+                elif 'read' in func_name:
+                    records_as_dict['I/O_type'].append('read')
+                elif func_name in Posix_IO_functions or func_name in MPI_IO_functions or func_name in HDF5_IO_functions:
+                    records_as_dict['I/O_type'].append('meta')
+                else:
+                    records_as_dict['I/O_type'].append('not I/O')
+
+                if func_name in Posix_IO_functions :
+                    records_as_dict['I/O_interface'].append('POSIX')
+                elif func_name in MPI_IO_functions:
+                    records_as_dict['I/O_interface'].append('MPIIO')
+                elif func_name in HDF5_IO_functions:
+                    records_as_dict['I/O_interface'].append('HDF5')
+                else:
+                    records_as_dict['I/O_interface'].append('not I/O')
 
         dataframe = pd.DataFrame.from_dict(records_as_dict)
 
