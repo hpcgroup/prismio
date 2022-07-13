@@ -427,6 +427,8 @@ class RecorderReader:
             "file_name": [],
             "io_volume": [],
             "function_type": [],
+            'I/O_type': [],
+            'I/O_interface': [],
         }
 
         fd_to_filenames = [
