@@ -408,11 +408,11 @@ class RecorderReader:
 
         all_records = []
         for rank in range(self.reader.GM.total_ranks):
-            per_rank_records = []
             for record_index in range(self.reader.LMs[rank].total_records):
-                per_rank_records.append(self.reader.records[rank][record_index])
-            per_rank_records = sorted(per_rank_records, key=lambda x: x.tstart)
-            all_records.append(per_rank_records)
+                record = self.reader.records[rank][record_index]
+                record.rank = rank
+                all_records.append(record)
+        all_records = sorted(all_records, key=lambda x: x.tstart)
 
         records_as_dict = {
             "rank": [],
@@ -435,106 +435,108 @@ class RecorderReader:
             {0: "stdin", 1: "stdout", 2: "stderr"}
         ] * self.reader.GM.total_ranks
 
-        for rank in range(self.reader.GM.total_ranks):
-            for record in all_records[rank]:
-                fd_to_filename = fd_to_filenames[rank]
-                function_args = record.args_to_strs()
-                func_name = self.reader.funcs[record.func_id]
-                io_size = None
-                if "fdopen" in func_name:
-                    fd = record.res
-                    old_fd = int(function_args[0])
-                    if old_fd not in fd_to_filename:
-                        filename = "__unknown__"
-                    else:
-                        filename = fd_to_filename[old_fd]
-                        fd_to_filename[fd] = filename
-                elif "fopen" in func_name or "open" in func_name:
-                    fd = record.res
-                    filename = function_args[0]
+        for record in all_records:
+            rank = record.rank
+            fd_to_filename = fd_to_filenames[rank]
+            function_args = record.args_to_strs()
+            func_name = self.reader.funcs[record.func_id]
+            
+            io_size = None
+            
+            if "fdopen" in func_name:
+                fd = record.res
+                old_fd = int(function_args[0])
+                if old_fd not in fd_to_filename:
+                    filename = "__unknown__"
+                else:
+                    filename = fd_to_filename[old_fd]
                     fd_to_filename[fd] = filename
-                elif "fwrite" in func_name or "fread" in func_name:
-                    io_size = int(function_args[1]) * int(function_args[2])
-                    fd = int(function_args[3])
-                    if fd not in fd_to_filename:
-                        filename = "__unknown__"
-                    else:
-                        filename = fd_to_filename[fd]
-                elif (
-                    "seek" in func_name
-                    or "close" in func_name
-                    or "sync" in func_name
-                    or "fprintf" in func_name
-                ):
-                    try:
-                        fd = int(function_args[0])
-                    except ValueError:
-                        fd = -1
-                    if fd not in fd_to_filename:
-                        filename = "__unknown__"
-                    else:
-                        filename = fd_to_filename[fd]
-                elif func_name and (
-                    "writev" in func_name
-                    or "readv" in func_name
-                    or "pwrite" in func_name
-                    or "pread" in func_name
-                    or "write" in func_name
-                    or "read" in func_name
-                ):
-                    try:
-                        io_size = int(function_args[2])
-                    except ValueError:
-                        io_size = None
-                    except IndexError:
-                        io_size = None
-                    try:
-                        fd = int(function_args[0])
-                    except ValueError:
-                        fd = -1
-                    if fd not in fd_to_filename:
-                        filename = "__unknown__"
-                    else:
-                        filename = fd_to_filename[fd]
+            elif "fopen" in func_name or "open" in func_name:
+                fd = record.res
+                filename = function_args[0]
+                fd_to_filename[fd] = filename
+            elif "fwrite" in func_name or "fread" in func_name:
+                io_size = int(function_args[1]) * int(function_args[2])
+                fd = int(function_args[3])
+                if fd not in fd_to_filename:
+                    filename = "__unknown__"
                 else:
-                    filename = None
+                    filename = fd_to_filename[fd]
+            elif (
+                "seek" in func_name
+                or "close" in func_name
+                or "sync" in func_name
+                or "fprintf" in func_name
+            ):
+                try:
+                    fd = int(function_args[0])
+                except ValueError:
+                    fd = -1
+                if fd not in fd_to_filename:
+                    filename = "__unknown__"
+                else:
+                    filename = fd_to_filename[fd]
+            elif func_name and (
+                "writev" in func_name
+                or "readv" in func_name
+                or "pwrite" in func_name
+                or "pread" in func_name
+                or "write" in func_name
+                or "read" in func_name
+            ):
+                try:
+                    io_size = int(function_args[2])
+                except ValueError:
+                    io_size = None
+                except IndexError:
+                    io_size = None
+                try:
+                    fd = int(function_args[0])
+                except ValueError:
+                    fd = -1
+                if fd not in fd_to_filename:
+                    filename = "__unknown__"
+                else:
+                    filename = fd_to_filename[fd]
+            else:
+                filename = None
 
-                records_as_dict["rank"].append(rank)
-                records_as_dict["function_id"].append(record.func_id)
-                records_as_dict["function_name"].append(func_name)
-                records_as_dict["tstart"].append(record.tstart)
-                records_as_dict["tend"].append(record.tend)
-                records_as_dict["time"].append(record.tend - record.tstart)
-                records_as_dict["arg_count"].append(record.arg_count)
-                records_as_dict["args"].append(function_args)
-                records_as_dict["return_value"].append(record.res)
-                records_as_dict["file_name"].append(filename)
-                records_as_dict["io_volume"].append(io_size)
-                
-                if func_name in Posix_IO_functions or func_name in MPI_IO_functions or func_name in HDF5_IO_functions:
-                    records_as_dict['function_type'].append('I/O')
-                elif func_name in MPI_communication_functions:
-                    records_as_dict['function_type'].append('communication')
-                else:
-                    records_as_dict['function_type'].append('compute')
+            records_as_dict["rank"].append(rank)
+            records_as_dict["function_id"].append(record.func_id)
+            records_as_dict["function_name"].append(func_name)
+            records_as_dict["tstart"].append(record.tstart)
+            records_as_dict["tend"].append(record.tend)
+            records_as_dict["time"].append(record.tend - record.tstart)
+            records_as_dict["arg_count"].append(record.arg_count)
+            records_as_dict["args"].append(function_args)
+            records_as_dict["return_value"].append(record.res)
+            records_as_dict["file_name"].append(filename)
+            records_as_dict["io_volume"].append(io_size)
+            
+            if func_name in Posix_IO_functions or func_name in MPI_IO_functions or func_name in HDF5_IO_functions:
+                records_as_dict['function_type'].append('I/O')
+            elif func_name in MPI_communication_functions:
+                records_as_dict['function_type'].append('communication')
+            else:
+                records_as_dict['function_type'].append('compute')
 
-                if 'write' in func_name:
-                    records_as_dict['I/O_type'].append('write')
-                elif 'read' in func_name:
-                    records_as_dict['I/O_type'].append('read')
-                elif func_name in Posix_IO_functions or func_name in MPI_IO_functions or func_name in HDF5_IO_functions:
-                    records_as_dict['I/O_type'].append('meta')
-                else:
-                    records_as_dict['I/O_type'].append('not I/O')
+            if 'write' in func_name:
+                records_as_dict['I/O_type'].append('write')
+            elif 'read' in func_name:
+                records_as_dict['I/O_type'].append('read')
+            elif func_name in Posix_IO_functions or func_name in MPI_IO_functions or func_name in HDF5_IO_functions:
+                records_as_dict['I/O_type'].append('meta')
+            else:
+                records_as_dict['I/O_type'].append('not I/O')
 
-                if func_name in Posix_IO_functions :
-                    records_as_dict['I/O_interface'].append('POSIX')
-                elif func_name in MPI_IO_functions:
-                    records_as_dict['I/O_interface'].append('MPIIO')
-                elif func_name in HDF5_IO_functions:
-                    records_as_dict['I/O_interface'].append('HDF5')
-                else:
-                    records_as_dict['I/O_interface'].append('not I/O')
+            if func_name in Posix_IO_functions :
+                records_as_dict['I/O_interface'].append('POSIX')
+            elif func_name in MPI_IO_functions:
+                records_as_dict['I/O_interface'].append('MPIIO')
+            elif func_name in HDF5_IO_functions:
+                records_as_dict['I/O_interface'].append('HDF5')
+            else:
+                records_as_dict['I/O_interface'].append('not I/O')
 
         dataframe = pd.DataFrame.from_dict(records_as_dict)
 
