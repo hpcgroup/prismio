@@ -3,6 +3,10 @@
 #
 # SPDX-License-Identifier: MIT
 
+# Using third party library modules and code from Recorder https://github.com/uiuc-hpc/Recorder 
+# Copyright (c) 2020 University of Illinois Board of Trustees. All Rights Reserved.
+# Developed by: Chen Wang, chenw5@illinois.edu 
+
 """
 The prismio.reader.recorder_reader module provides functions for processing
 tracing data from Recorder, for example, sorting records, finding the file name
