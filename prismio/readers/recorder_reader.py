@@ -446,13 +446,6 @@ class RecorderReader:
             fd_to_filename = fd_to_filenames[rank]
             fd_offset = fd_offsets[rank]
             func_name = self.reader.funcs[record.func_id]
-            '''
-                File "/Users/henryxu/Desktop/Research/prismio/prismio/readers/recorder_reader.py", line 216, in read
-                function_args = record.args_to_strs()
-                File "/Users/henryxu/miniconda3/lib/python3.9/site-packages/recorder_viz/creader_wrapper.py", line 57, in args_to_strs
-                arg_strs[i] = self.args[i].decode('utf-8')
-            AttributeError: 'NoneType' object has no attribute 'decode'
-            '''
 
             filename = None
             io_size = None
@@ -468,7 +461,6 @@ class RecorderReader:
                 sys.stdout.flush()
                 print('UnicodeDecodeError from function arguments')
                 sys.stdout.flush()
-                function_args = ['None', 'None', 'None', 'None', 'None', 'None']
                 error = 1
             except AttributeError:
                 print(func_name)
@@ -477,7 +469,6 @@ class RecorderReader:
                 sys.stdout.flush()
                 print('AttributeError from function arguments')
                 sys.stdout.flush()
-                function_args = ['None', 'None', 'None', 'None', 'None', 'None']
                 error = 1
                 
             if error == 1:
