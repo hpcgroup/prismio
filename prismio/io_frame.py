@@ -31,7 +31,7 @@ class IOFrame:
     metadata: DataFrame
 
     @staticmethod
-    def from_recorder(log_dir: str):
+    def from_recorder(log_dir: str, include_io_to_system_file: Optional[bool] = False):
         """
         Read trace files from recorder and create the corresponding
         IOFrame object.
@@ -39,6 +39,8 @@ class IOFrame:
         Args:
             log_dir (str): path to the trace files directory of Recorder the
             user wants to analyze.
+            include_io_to_system_file (bool):
+            flag to determine whether to include I/O to system files.
 
         Return:
             A IOFrame object corresponding to this trace files directory.
@@ -46,7 +48,7 @@ class IOFrame:
         """
         from prismio.readers.recorder_reader import RecorderReader
 
-        return RecorderReader(log_dir).read()
+        return RecorderReader(log_dir).read(include_io_to_system_file)
 
     def filter(self, my_lambda):
         """
