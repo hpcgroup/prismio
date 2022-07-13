@@ -3,9 +3,9 @@
 #
 # SPDX-License-Identifier: MIT
 
-# Using third party library modules and code from Recorder https://github.com/uiuc-hpc/Recorder 
+# Using third party library modules and code from Recorder https://github.com/uiuc-hpc/Recorder
 # Copyright (c) 2020 University of Illinois Board of Trustees. All Rights Reserved.
-# Developed by: Chen Wang, chenw5@illinois.edu 
+# Developed by: Chen Wang, chenw5@illinois.edu
 
 """
 The prismio.reader.recorder_reader module provides functions for processing
@@ -419,28 +419,31 @@ class RecorderReader:
         all_records = sorted(all_records, key=lambda x: x.tstart)
 
         records_as_dict = {
-            'rank': [], 
-            'function_id': [], 
-            'function_name': [], 
-            'tstart': [],
-            'tend': [],
-            'time': [], 
-            'arg_count': [],
-            'args': [],
-            'return_value': [],
-            'file_name': [],
-            'io_volume': [],
-            'offset': [],
-            'function_type': [],
-            'I/O_type': [],
-            'I/O_interface': [],
-            'error': [],
+            "rank": [],
+            "function_id": [],
+            "function_name": [],
+            "tstart": [],
+            "tend": [],
+            "time": [],
+            "arg_count": [],
+            "args": [],
+            "return_value": [],
+            "file_name": [],
+            "io_volume": [],
+            "offset": [],
+            "function_type": [],
+            "I/O_type": [],
+            "I/O_interface": [],
+            "error": [],
         }
 
-        fd_to_filenames = [{0: "stdin", 1: "stdout", 2: "stderr"} for _ in range(self.reader.GM.total_ranks)]
+        fd_to_filenames = [
+            {0: "stdin", 1: "stdout", 2: "stderr"}
+            for _ in range(self.reader.GM.total_ranks)
+        ]
         fd_offsets = [{0: 0, 1: 0, 2: 0} for _ in range(self.reader.GM.total_ranks)]
         end_of_files = {"stdin": 0, "stdout": 0, "stderr": 0}
-        
+
         for record in all_records:
             rank = record.rank
             fd_to_filename = fd_to_filenames[rank]
@@ -459,7 +462,7 @@ class RecorderReader:
                 sys.stdout.flush()
                 print(record)
                 sys.stdout.flush()
-                print('UnicodeDecodeError from function arguments')
+                print("UnicodeDecodeError from function arguments")
                 sys.stdout.flush()
                 error = 1
             except AttributeError:
@@ -467,39 +470,39 @@ class RecorderReader:
                 sys.stdout.flush()
                 print(record)
                 sys.stdout.flush()
-                print('AttributeError from function arguments')
+                print("AttributeError from function arguments")
                 sys.stdout.flush()
                 error = 1
-                
+
             if error == 1:
                 pass
-            elif 'MPI' in func_name or 'H5' in func_name:
+            elif "MPI" in func_name or "H5" in func_name:
                 pass
-            elif 'fdopen' in func_name:
+            elif "fdopen" in func_name:
                 fd = record.res
                 old_fd = int(function_args[0])
                 if old_fd not in fd_to_filename:
                     error = "Error: fdopen a non-existing file descriptor (no previous open returns this file descriptor or already closed)"
                     print(error)
-                    filename = '__unknown__'
+                    filename = "__unknown__"
                 else:
                     filename = fd_to_filename[old_fd]
                     fd_to_filename[fd] = filename
                     fd_offset[fd] = 0
 
-            elif 'fopen' in func_name:
+            elif "fopen" in func_name:
                 fd = record.res
                 filename = function_args[0]
                 fd_to_filename[fd] = filename
                 if filename not in end_of_files:
                     end_of_files[filename] = 0
-                
+
                 fd_offset[fd] = 0
                 openMode = function_args[1]
-                if 'a' in openMode:
+                if "a" in openMode:
                     fd_offset[fd] = end_of_files[filename]
 
-            elif 'open' in func_name:
+            elif "open" in func_name:
                 fd = record.res
                 filename = function_args[0]
                 fd_to_filename[fd] = filename
@@ -507,24 +510,28 @@ class RecorderReader:
                     end_of_files[filename] = 0
 
                 fd_offset[fd] = 0
-                
+
                 openMode = int(function_args[1])
                 if openMode == 2:
                     fd_offset[fd] = end_of_files[filename]
 
-            elif 'seek' in func_name:
-                fd, offset, whence = int(function_args[0]), int(function_args[1]), int(function_args[2])
-                
+            elif "seek" in func_name:
+                fd, offset, whence = (
+                    int(function_args[0]),
+                    int(function_args[1]),
+                    int(function_args[2]),
+                )
+
                 if fd not in fd_to_filename:
                     error = "Error: seek a non-existing file descriptor (no open returns this file descriptor or already closed)"
                     print(error)
-                    filename = '__unknown__'
+                    filename = "__unknown__"
                     offset = -1
-                else: 
+                else:
                     filename = fd_to_filename[fd]
-                    if whence == 0:     # SEEK_SET
+                    if whence == 0:  # SEEK_SET
                         fd_offset[fd] = offset
-                    elif whence == 1:   # SEEK_CUR
+                    elif whence == 1:  # SEEK_CUR
                         if fd_offset[fd] + offset > end_of_files[filename]:
                             error = "Warning: seek beyond end of file"
                             print(error)
@@ -534,7 +541,7 @@ class RecorderReader:
                             print(error)
                         else:
                             fd_offset[fd] += offset
-                    elif whence == 2:   # SEEK_END'
+                    elif whence == 2:  # SEEK_END'
                         if offset > 0:
                             error = "Warning: seek beyond end of file"
                             print(error)
@@ -545,148 +552,164 @@ class RecorderReader:
                         else:
                             fd_offset[fd] = end_of_files[filename] + offset
 
-            elif 'close' in func_name:
+            elif "close" in func_name:
                 fd = int(function_args[0])
                 if fd not in fd_to_filename:
-                    filename = '__unknown__'
+                    filename = "__unknown__"
                     error = "Error: close a non-existing file descriptor (no open returns this file descriptor or already closed)"
                     print(error)
-                else: 
+                else:
                     filename = fd_to_filename[fd]
                     del fd_to_filename[fd]
                     del fd_offset[fd]
-            
-            elif 'sync' in func_name:
+
+            elif "sync" in func_name:
                 fd = int(function_args[0])
                 if fd not in fd_to_filename:
-                    filename = '__unknown__'
+                    filename = "__unknown__"
                     error = "Error: sync a non-existing file descriptor (no open returns this file descriptor or already closed)"
                     print(error)
-                else: 
+                else:
                     filename = fd_to_filename[fd]
 
-            elif 'fwrite' in func_name or 'fread' in func_name:
+            elif "fwrite" in func_name or "fread" in func_name:
                 io_size = int(function_args[1]) * int(function_args[2])
                 fd = int(function_args[3])
-                
+
                 if fd not in fd_to_filename:
                     error = "Error: write or read a non-existing file descriptor (no open returns this file descriptor or already closed)"
                     print(error)
-                    filename = '__unknown__'
+                    filename = "__unknown__"
                     offset = -1
-                else: 
+                else:
                     filename = fd_to_filename[fd]
                     offset = fd_offset[fd]
                     fd_offset[fd] += io_size
                     end_of_files[filename] = max(end_of_files[filename], fd_offset[fd])
 
-            elif 'writev' in func_name or 'readv' in func_name:
+            elif "writev" in func_name or "readv" in func_name:
                 fd, io_size = int(function_args[0]), int(function_args[1])
 
                 if fd not in fd_to_filename:
                     error = "Error: write or read a non-existing file descriptor (no open returns this file descriptor or already closed)"
                     print(error)
-                    filename = '__unknown__'
+                    filename = "__unknown__"
                     offset = -1
-                else: 
+                else:
                     filename = fd_to_filename[fd]
                     offset = fd_offset[fd]
                     fd_offset[fd] += io_size
                     end_of_files[filename] = max(end_of_files[filename], fd_offset[fd])
 
-            elif 'pwrite' in func_name or 'pread' in func_name: # does not change offset
-                fd, io_size, offset = int(function_args[0]), int(function_args[2]), int(function_args[3])
-                
+            elif (
+                "pwrite" in func_name or "pread" in func_name
+            ):  # does not change offset
+                fd, io_size, offset = (
+                    int(function_args[0]),
+                    int(function_args[2]),
+                    int(function_args[3]),
+                )
+
                 if fd not in fd_to_filename:
                     error = "Error: write or read a non-existing file descriptor (no open returns this file descriptor or already closed)"
                     print(error)
-                    filename = '__unknown__'
-                else: 
+                    filename = "__unknown__"
+                else:
                     filename = fd_to_filename[fd]
-                    
+
                     if offset > end_of_files[filename]:
                         error = "Warning: pwrite or pread beyond end of file"
                         print(error)
                     elif offset < 0:
                         error = "Error: pwrite or pread beyond start of file"
                         print(error)
-                    end_of_files[filename] = max(end_of_files[filename], offset + io_size)
-            
-            elif 'write' in func_name or 'read' in func_name:
+                    end_of_files[filename] = max(
+                        end_of_files[filename], offset + io_size
+                    )
+
+            elif "write" in func_name or "read" in func_name:
                 fd, io_size = int(function_args[0]), int(function_args[2])
 
                 if fd not in fd_to_filename:
                     error = "Error: write or read a non-existing file descriptor (no open returns this file descriptor or already closed)"
                     print(error)
-                    filename = '__unknown__'
+                    filename = "__unknown__"
                     offset = -1
-                else: 
+                else:
                     filename = fd_to_filename[fd]
                     offset = fd_offset[fd]
                     fd_offset[fd] += io_size
                     end_of_files[filename] = max(end_of_files[filename], fd_offset[fd])
 
-            elif 'fprintf' in func_name:
+            elif "fprintf" in func_name:
                 fd, io_size = int(function_args[0]), int(function_args[1])
 
                 if fd not in fd_to_filename:
                     error = "Error: fprintf a non-existing file descriptor (no open returns this file descriptor or already closed)"
                     print(error)
-                    filename = '__unknown__'
+                    filename = "__unknown__"
                     offset = -1
-                else: 
+                else:
                     filename = fd_to_filename[fd]
                     offset = fd_offset[fd]
                     fd_offset[fd] += io_size
                     end_of_files[filename] = max(end_of_files[filename], fd_offset[fd])
 
-            records_as_dict['rank'].append(rank)
-            records_as_dict['function_id'].append(record.func_id)
-            records_as_dict['function_name'].append(func_name)
-            records_as_dict['tstart'].append(record.tstart)
-            records_as_dict['tend'].append(record.tend)
-            records_as_dict['time'].append(record.tend - record.tstart)
-            records_as_dict['arg_count'].append(record.arg_count)
-            records_as_dict['args'].append(function_args)
-            records_as_dict['return_value'].append(record.res)
-            records_as_dict['file_name'].append(filename) 
-            records_as_dict['io_volume'].append(io_size)
-            records_as_dict['error'].append(error)
-            records_as_dict['offset'].append(offset)
-            
-            if func_name in Posix_IO_functions or func_name in MPI_IO_functions or func_name in HDF5_IO_functions:
-                records_as_dict['function_type'].append('I/O')
+            records_as_dict["rank"].append(rank)
+            records_as_dict["function_id"].append(record.func_id)
+            records_as_dict["function_name"].append(func_name)
+            records_as_dict["tstart"].append(record.tstart)
+            records_as_dict["tend"].append(record.tend)
+            records_as_dict["time"].append(record.tend - record.tstart)
+            records_as_dict["arg_count"].append(record.arg_count)
+            records_as_dict["args"].append(function_args)
+            records_as_dict["return_value"].append(record.res)
+            records_as_dict["file_name"].append(filename)
+            records_as_dict["io_volume"].append(io_size)
+            records_as_dict["error"].append(error)
+            records_as_dict["offset"].append(offset)
+
+            if (
+                func_name in Posix_IO_functions
+                or func_name in MPI_IO_functions
+                or func_name in HDF5_IO_functions
+            ):
+                records_as_dict["function_type"].append("I/O")
             elif func_name in MPI_communication_functions:
-                records_as_dict['function_type'].append('communication')
+                records_as_dict["function_type"].append("communication")
             else:
-                records_as_dict['function_type'].append('compute')
+                records_as_dict["function_type"].append("compute")
 
-            if 'write' in func_name:
-                records_as_dict['I/O_type'].append('write')
-            elif 'read' in func_name:
-                records_as_dict['I/O_type'].append('read')
-            elif func_name in Posix_IO_functions or func_name in MPI_IO_functions or func_name in HDF5_IO_functions:
-                records_as_dict['I/O_type'].append('meta')
+            if "write" in func_name:
+                records_as_dict["I/O_type"].append("write")
+            elif "read" in func_name:
+                records_as_dict["I/O_type"].append("read")
+            elif (
+                func_name in Posix_IO_functions
+                or func_name in MPI_IO_functions
+                or func_name in HDF5_IO_functions
+            ):
+                records_as_dict["I/O_type"].append("meta")
             else:
-                records_as_dict['I/O_type'].append('not I/O')
+                records_as_dict["I/O_type"].append("not I/O")
 
-            if func_name in Posix_IO_functions :
-                records_as_dict['I/O_interface'].append('POSIX')
+            if func_name in Posix_IO_functions:
+                records_as_dict["I/O_interface"].append("POSIX")
             elif func_name in MPI_IO_functions:
-                records_as_dict['I/O_interface'].append('MPIIO')
+                records_as_dict["I/O_interface"].append("MPIIO")
             elif func_name in HDF5_IO_functions:
-                records_as_dict['I/O_interface'].append('HDF5')
+                records_as_dict["I/O_interface"].append("HDF5")
             else:
-                records_as_dict['I/O_interface'].append('not I/O')
+                records_as_dict["I/O_interface"].append("not I/O")
 
         dataframe = pd.DataFrame.from_dict(records_as_dict)
 
         def ignore_system_unknown_file(row):
-            if (row['file_name'] is None) or (row['file_name'] != row['file_name']):
+            if (row["file_name"] is None) or (row["file_name"] != row["file_name"]):
                 return True
-            file_ignore = ['/dev/', '/etc']
+            file_ignore = ["/dev/", "/etc"]
             for ignore in file_ignore:
-                if ignore in row['file_name']:
+                if ignore in row["file_name"]:
                     return False
             return True
 
