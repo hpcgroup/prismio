@@ -39,7 +39,7 @@ class RecorderReader:
         """
         self.reader = recorder_viz.RecorderReader(log_dir)
 
-    def read(self, include_io_to_system_and_unknown_file=False):
+    def read(self, include_io_to_system_file=False):
         """
         Call sort_records and then find_filenames. After it has all information
         needed, it creates the dataframe row by row. Then create an IOFrame with
@@ -704,7 +704,7 @@ class RecorderReader:
 
         dataframe = pd.DataFrame.from_dict(records_as_dict)
 
-        def ignore_system_unknown_file(row):
+        def ignore_system_file(row):
             if (row["file_name"] is None) or (row["file_name"] != row["file_name"]):
                 return True
             file_ignore = ["/dev/", "/etc"]
@@ -713,8 +713,8 @@ class RecorderReader:
                     return False
             return True
 
-        if not include_io_to_system_and_unknown_file:
-            index = dataframe.apply(ignore_system_unknown_file, axis=1)
+        if not include_io_to_system_file:
+            index = dataframe.apply(ignore_system_file, axis=1)
             dataframe = dataframe[index]
 
         return IOFrame(dataframe, metadata)
