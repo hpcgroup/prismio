@@ -12,6 +12,7 @@ or Darshan
 from pandas.core.frame import DataFrame
 from typing import Callable, List, Optional
 import numpy as np
+import pandas as pd
 from dataclasses import dataclass
 
 
@@ -318,56 +319,50 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({"time": agg_function})
             return dataframe
 
-    def function_count_by_library(
-        self, rank: Optional[list] = None, agg_function: Optional[Callable] = None
+    def function_count_by_IO_interface(
+        self, rank: Optional[list]=None, agg_function: Optional[Callable]=None, rank_major:Optional[bool]=False, filter: Optional[Callable[..., bool]]=None, dropna: Optional[bool]=False, complement: Optional[bool]=False
     ):
         """
-        Count the number of function calls from mpi, hdf5 and posix. Same
-        implementation to previous ones. But it first check the library for
-        each function call, and then groupby the library.
+        Count the number of function calls from mpi, hdf5 and posix. Same implementation to previous
+        ones. But it first check the I/O_interface for each function call, and then groupby the I/O_interface.
 
         Args:
             rank (None or a list): user selected ranks to get file count.
             agg_function: (function): aggregation function applying on the result.
+            rank_major (bool): determine whether rank to be primary index or file name.
+            filter (function): filter self.dataframe before groupby aggregate,
+            but self.dataframe won't change
+            dropna (bool): drop groups with key = NA
+            complement (bool): add empty rows to groups that have missing secondary
+            index. Used in plots
+
 
         Return:
-            Identical structure to the previous one, except the value here is
-            the number of function calls of a library in selected ranks. Or
-            avg/min/max accross selected ranks depending on the agg_function
+            Identical structure to the previous one, except the value here is the number of function
+            calls of a I/O_interface in selected ranks. Or avg/min/max accross selected ranks depending on 
+            the agg_function
+
         """
-
-        # helper function to check library for a given function
-        def check_library(function):
-            if "H5" in function:
-                return "hdf5"
-            elif "MPI" in function:
-                return "mpi"
-            else:
-                return "posix"
-
-        # check library for each row and put result into a new column
-        self.dataframe["library"] = self.dataframe["function_name"].apply(
-            lambda function: check_library(function)
-        )
-
-        # groupby library name and rank, then count the number of functions in
-        # each library
-        dataframe = self.groupby_aggregate(
-            ["library", "rank"], rank=rank, agg_dict={"library": "count"}, drop=True
-        )
-
+        
+        # groupby I/O_interface name and rank, then count the number of functions in each I/O_interface
+        if rank_major:
+            dataframe = self.groupby_aggregate(['rank', 'I/O_interface'], rank=rank, agg_dict={'I/O_interface': 'count'}, filter=filter, drop=True, dropna=dropna)
+        else:
+            dataframe = self.groupby_aggregate(['I/O_interface', 'rank'], rank=rank, agg_dict={'I/O_interface': 'count'}, filter=filter, drop=True, dropna=dropna)
         # drop the new column to maintain the original dataframe
-        self.dataframe.drop(["library"], axis=1)
+        self.dataframe.drop(['I/O_interface'], axis=1, inplace=True)
+        
+        dataframe = dataframe.rename(columns={'I/O_interface': 'I/O_interface_count'})
+        
+        if complement:
+            new_index = pd.MultiIndex.from_product(dataframe.index.levels)
+            dataframe = dataframe.reindex(new_index).fillna(0)
 
-        dataframe = dataframe.rename(columns={"library": "library_call_count"})
-
-        # group by library name and apply agg_function over ranks if it's not None
+        # group by I/O_interface name and apply agg_function over ranks if it's not None
         if agg_function is None:
             return dataframe
         else:
-            dataframe = dataframe.groupby(level=[0]).agg(
-                {"library_call_count": agg_function}
-            )
+            dataframe = dataframe.groupby(level=[0]).agg({'I/O_interface_count': agg_function})
             return dataframe
 
     def io_volume(
