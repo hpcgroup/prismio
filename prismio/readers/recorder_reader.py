@@ -434,9 +434,16 @@ class RecorderReader:
         for rank in range(self.reader.GM.total_ranks):
             for record in all_records[rank]:
                 fd_to_filename = fd_to_filenames[rank]
-                function_args = record.args_to_strs()
                 func_name = self.reader.funcs[record.func_id]
                 io_size = None
+
+                try:
+                    function_args = record.args_to_strs()
+                except UnicodeDecodeError:
+                    continue
+                except AttributeError:
+                    continue
+
                 if "fdopen" in func_name:
                     fd = record.res
                     old_fd = int(function_args[0])
