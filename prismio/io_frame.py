@@ -14,7 +14,7 @@ from typing import Callable, List, Optional
 import numpy as np
 from dataclasses import dataclass
 
-Posix_IO_functions = [
+POSIX_IO_functions = [
     "creat",
     "creat64",
     "open",
