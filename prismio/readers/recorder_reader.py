@@ -466,7 +466,8 @@ class RecorderReader:
                 fd = record.res
                 old_fd = int(function_args[0])
                 if old_fd not in fd_to_filename:
-                    error = "Error: fdopen a non-existing file descriptor (no previous open returns this file descriptor or already closed)"
+                    error = "Error: fdopen a non-existing file descriptor \
+                    (no previous open returns this file descriptor or already closed)"
                     print(error)
                     filename = "__unknown__"
                 else:
@@ -507,7 +508,8 @@ class RecorderReader:
                 )
 
                 if fd not in fd_to_filename:
-                    error = "Error: seek a non-existing file descriptor (no open returns this file descriptor or already closed)"
+                    error = "Error: seek a non-existing file descriptor \
+                        (no open returns this file descriptor or already closed)"
                     print(error)
                     filename = "__unknown__"
                     offset = -1
@@ -540,7 +542,8 @@ class RecorderReader:
                 fd = int(function_args[0])
                 if fd not in fd_to_filename:
                     filename = "__unknown__"
-                    error = "Error: close a non-existing file descriptor (no open returns this file descriptor or already closed)"
+                    error = "Error: close a non-existing file descriptor \
+                        (no open returns this file descriptor or already closed)"
                     print(error)
                 else:
                     filename = fd_to_filename[fd]
@@ -551,7 +554,8 @@ class RecorderReader:
                 fd = int(function_args[0])
                 if fd not in fd_to_filename:
                     filename = "__unknown__"
-                    error = "Error: sync a non-existing file descriptor (no open returns this file descriptor or already closed)"
+                    error = "Error: sync a non-existing file descriptor \
+                        (no open returns this file descriptor or already closed)"
                     print(error)
                 else:
                     filename = fd_to_filename[fd]
@@ -561,7 +565,8 @@ class RecorderReader:
                 fd = int(function_args[3])
 
                 if fd not in fd_to_filename:
-                    error = "Error: write or read a non-existing file descriptor (no open returns this file descriptor or already closed)"
+                    error = "Error: write or read a non-existing file descriptor \
+                        (no open returns this file descriptor or already closed)"
                     print(error)
                     filename = "__unknown__"
                     offset = -1
@@ -575,7 +580,8 @@ class RecorderReader:
                 fd, io_size = int(function_args[0]), int(function_args[1])
 
                 if fd not in fd_to_filename:
-                    error = "Error: write or read a non-existing file descriptor (no open returns this file descriptor or already closed)"
+                    error = "Error: write or read a non-existing file descriptor \
+                        (no open returns this file descriptor or already closed)"
                     print(error)
                     filename = "__unknown__"
                     offset = -1
@@ -595,7 +601,8 @@ class RecorderReader:
                 )
 
                 if fd not in fd_to_filename:
-                    error = "Error: write or read a non-existing file descriptor (no open returns this file descriptor or already closed)"
+                    error = "Error: write or read a non-existing file descriptor \
+                        (no open returns this file descriptor or already closed)"
                     print(error)
                     filename = "__unknown__"
                 else:
@@ -619,7 +626,8 @@ class RecorderReader:
                 fd, io_size = int(function_args[0]), int(function_args[2])
 
                 if fd not in fd_to_filename:
-                    error = "Error: write or read a non-existing file descriptor (no open returns this file descriptor or already closed)"
+                    error = "Error: write or read a non-existing file descriptor \
+                        (no open returns this file descriptor or already closed)"
                     print(error)
                     filename = "__unknown__"
                     offset = -1
@@ -633,7 +641,8 @@ class RecorderReader:
                 fd, io_size = int(function_args[0]), int(function_args[1])
 
                 if fd not in fd_to_filename:
-                    error = "Error: fprintf a non-existing file descriptor (no open returns this file descriptor or already closed)"
+                    error = "Error: fprintf a non-existing file descriptor \
+                        (no open returns this file descriptor or already closed)"
                     print(error)
                     filename = "__unknown__"
                     offset = -1
