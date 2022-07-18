@@ -322,7 +322,7 @@ class IOFrame:
         self, rank: Optional[list] = None, agg_function: Optional[Callable] = None
     ):
         """
-        Count the number of function calls from mpi, hdf5 and posix. 
+        Count the number of function calls from mpi, hdf5 and posix.
 
         Args:
             rank (None or a list): user selected ranks to get file count.
