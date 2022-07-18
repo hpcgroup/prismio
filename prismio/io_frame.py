@@ -151,6 +151,24 @@ class IOFrame:
 
         return agg_dataframe
 
+    def add_io_interface(self):
+        if "io_interface" in self.dataframe.columns:
+            return
+
+        def io_interface(row):
+            if row["func_name"] in POSIX_IO_functions:
+                return "POSIX"
+            elif row["func_name"] in MPI_IO_functions:
+                return "MPIIO"
+            elif row["func_name"] in HDF5_IO_functions:
+                return "HDF5"
+            else:
+                return "not I/O"
+
+        self.dataframe["io_interface"] = self.dataframe.apply(
+            lambda x: io_interface(x), axis=1
+        )
+
     def file_count(
         self, rank: Optional[list] = None, agg_function: Optional[Callable] = None
     ):
