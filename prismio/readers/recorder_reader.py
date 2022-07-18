@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: MIT
 
-# Using third party library modules and code from 
+# Using third party library modules and code from
 # Recorder https://github.com/uiuc-hpc/Recorder
 # Copyright (c) 2020 University of Illinois Board of Trustees. All Rights Reserved.
 
