@@ -431,7 +431,8 @@ class RecorderReader:
 
         fd_to_filenames = [
             {0: "stdin", 1: "stdout", 2: "stderr"}
-        ] * self.reader.GM.total_ranks
+            for _ in range(self.reader.GM.total_ranks)
+        ]
 
         for rank in range(self.reader.GM.total_ranks):
             for record in all_records[rank]:
