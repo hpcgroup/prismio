@@ -665,13 +665,11 @@ class IOFrame:
             dataframe = dataframe.groupby(level=[0]).agg({"time": agg_function})
             return dataframe
 
-    def function_count_by_library(
+    def function_count_by_IO_interface(
         self, rank: Optional[list] = None, agg_function: Optional[Callable] = None
     ):
         """
-        Count the number of function calls from mpi, hdf5 and posix. Same
-        implementation to previous ones. But it first check the library for
-        each function call, and then groupby the library.
+        Count the number of function calls from mpi, hdf5 and posix.
 
         Args:
             rank (None or a list): user selected ranks to get file count.
@@ -679,41 +677,30 @@ class IOFrame:
 
         Return:
             Identical structure to the previous one, except the value here is
-            the number of function calls of a library in selected ranks. Or
+            the number of function calls of a I/O interface in selected ranks. Or
             avg/min/max accross selected ranks depending on the agg_function
         """
 
-        # helper function to check library for a given function
-        def check_library(function):
-            if "H5" in function:
-                return "hdf5"
-            elif "MPI" in function:
-                return "mpi"
-            else:
-                return "posix"
-
-        # check library for each row and put result into a new column
-        self.dataframe["library"] = self.dataframe["function_name"].apply(
-            lambda function: check_library(function)
-        )
+        if "io_interface" not in self.dataframe.columns:
+            self.add_io_interface()
 
         # groupby library name and rank, then count the number of functions in
         # each library
         dataframe = self.groupby_aggregate(
-            ["library", "rank"], rank=rank, agg_dict={"library": "count"}, drop=True
+            ["io_interface", "rank"],
+            rank=rank,
+            agg_dict={"func_name": "count"},
+            drop=True,
         )
 
-        # drop the new column to maintain the original dataframe
-        self.dataframe.drop(["library"], axis=1)
-
-        dataframe = dataframe.rename(columns={"library": "library_call_count"})
+        dataframe = dataframe.rename(columns={"func_name": "io_interface_call_count"})
 
         # group by library name and apply agg_function over ranks if it's not None
         if agg_function is None:
             return dataframe
         else:
             dataframe = dataframe.groupby(level=[0]).agg(
-                {"library_call_count": agg_function}
+                {"io_interface_call_count": agg_function}
             )
             return dataframe
 
