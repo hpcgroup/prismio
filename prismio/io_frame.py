@@ -766,8 +766,8 @@ class IOFrame:
         plt.ylabel('rank')
         return fig, ax
 
-
-    def byteTo(self, value, unit='auto'):
+    @staticmethod
+    def byteTo(value, unit='auto'):
         if unit == 'auto':
             if value < 100:
                 unit = 'B'
@@ -794,30 +794,39 @@ class IOFrame:
     def getAPI(self):
         interface = self.dataframe.groupby('I/O_interface')['function_name'].count()
         
-        max = -1
-        api = ''
         if 'MPIIO' in interface:
-            interface['POSIX'] = interface['POSIX'] - 2 * interface['MPIIO'] # TODO: need a better way to exclude POSIX calls from MPIIO
+            interface['POSIX'] = interface['POSIX'] - interface['MPIIO'] # TODO: need a better way to exclude POSIX calls from MPIIO
+        else:
+            interface['MPIIO'] = 0
+        if 'HDF5' in interface:
+            interface['POSIX'] = interface['POSIX'] - interface['HDF5'] # TODO: need a better way to exclude POSIX calls from HDF5
+        else:
+            interface['HDF5'] = 0
+
+        total = 0
 
         for key in interface.keys():
-            if interface[key] > max and key != 'not I/O':
-                max = interface[key]
-                api = key
-        return api
+            if key != 'not I/O':
+                total += interface[key]
+            
+        for key in interface.keys():
+            interface[key] = 1 if interface[key] / total > 0.3 else 0
+
+        return interface
 
     def getTransferSize(self):
         df = self.dataframe[self.dataframe.apply(lambda x: IOFrame.is_keep(x['file_name']) and (x['io_volume'] > 0), axis = 1)]
 
         transferSize = df['io_volume'].mean()
-        return self.byteTo(transferSize)
+        return transferSize
 
     def isCollective(self):
         df = self.dataframe[self.dataframe['function_name'].str.contains('MPI')]
         df = df[df['function_name'].str.contains('read') | df['function_name'].str.contains('write')]
         collective = df[df['function_name'].str.contains('all') | df['function_name'].str.contains('ordered')]
-        print(len(collective))
-        print(len(df))
-        return len(collective) / len(df) > 0.9
+        if len(df) == 0:
+            return 0
+        return 1 if len(collective) / len(df) > 0.9 else 0
 
     def isFsyncPerWrite(self):
         count = 0
@@ -834,9 +843,7 @@ class IOFrame:
                 prevRow = row
         
         num_write = len(df[df['function_name'].str.contains('write')])
-        print(count)
-        print(num_write)
-        return count / num_write > 0.5
+        return 1 if count / num_write > 0.5 else 0
 
     def isFsync(self):
         count = 0
@@ -853,19 +860,17 @@ class IOFrame:
                 prevRow = row
         
         num_close = len(df[df['function_name'].str.contains('close')])
-        print(count)
-        print(num_close)
-        return count / num_close > 0.5
+        return 1 if count / num_close > 0.5 else 0
 
     def isUseFileView(self):
         functions = self.dataframe['function_name'].unique()
         if 'MPI_File_set_view' in functions:
-            return True
+            return 1
         else:
-            return False
+            return 0
 
     def isFilePerProc(self):
-        return not self.is_shared_io()
+        return 1 if not self.is_shared_io() else 0
 
     def addFileDirectory(self):
         def getDirectory(x):
@@ -903,9 +908,9 @@ class IOFrame:
         shared_directories = shared_directories.reset_index()
         shared_directories = shared_directories[shared_directories.apply(lambda x: IOFrame.is_keep(x['directory']), axis = 1)]
         if shared_directories['num_ranks'].max() > 1:
-            return False
+            return 0
         else:
-            return True
+            return 1
 
     def accessPattern(self, within_rank=False):
         rdwrdf = self.dataframe[(self.dataframe['I/O_type'] == 'read') | (self.dataframe['I/O_type'] == 'write')]
