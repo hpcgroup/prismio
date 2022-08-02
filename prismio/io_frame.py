@@ -38,7 +38,7 @@ class IOFrame:
     metadata: DataFrame
 
     @staticmethod
-    def from_recorder(log_dir: str):
+    def from_recorder(log_dir: str, include_io_to_system_file=False):
         """
         Read trace files from recorder and create the corresponding
         IOFrame object.
@@ -51,7 +51,7 @@ class IOFrame:
 
         """
         from prismio.readers.recorder_reader import RecorderReader
-        return RecorderReader(log_dir).read()
+        return RecorderReader(log_dir).read(include_io_to_system_file)
 
     @staticmethod
     def is_keep(file_name):
@@ -59,7 +59,7 @@ class IOFrame:
             return False
         if file_name != file_name: # check if it is NaN
             return False
-        file_ignore = ['/dev/', '/etc', 'stdout', 'stdin', 'stderr']
+        file_ignore = ['/dev/', '/etc', 'stdout', 'stdin', 'stderr', '__unknown__']
         for ignore in file_ignore:
             if ignore in file_name:
                 return False
@@ -502,8 +502,8 @@ class IOFrame:
             A multi-index dataframe containing information of a file shared by some ranks for all files.
 
         """
-        dataframe = self.groupby_aggregate(['file_name', 'I/O_type'], agg_dict={'rank': 'unique', 'file_name': 'count', 'io_volume': np.sum}, drop=True, dropna=dropna)
-        dataframe = dataframe.rename(columns={'file_name': 'file_access_count'})
+        dataframe = self.groupby_aggregate(['file_name', 'I/O_type'], agg_dict={'rank': 'unique', 'function_name': 'count', 'io_volume': np.sum}, drop=True, dropna=dropna)
+        dataframe = dataframe.rename(columns={'function_name': 'file_access_count'})
         dataframe = dataframe.rename(columns={'rank': 'shared_ranks'})
         dataframe['num_ranks'] = dataframe.apply(lambda x: len(x.shared_ranks), axis=1)
         return dataframe
@@ -740,11 +740,13 @@ class IOFrame:
         plt.xlabel('time (s)')
         plt.ylabel('I/O bandwidth (' + unit + ')')
 
-    def timeline(self, rank: Optional[list]=None, filter=lambda x: True, style="scatter"):
+    def timeline(self, rank: Optional[list]=None, filter=lambda x: True, style="interval"):
         dataframe = self.dataframe[self.dataframe.apply(filter, axis = 1)].copy()
+        # dataframe['tstart'] = dataframe['tstart'] * 100
+        # dataframe['tend'] = dataframe['tend'] * 100
         groups = dataframe.groupby('function_name')
         # functions = list(dataframe['function_name'].unique())
-        plt.figure()
+        fig = plt.figure()
         ax = plt.subplot(111)
         if style == "scatter":
             sns.scatterplot(x='tstart', y='rank', data=dataframe, hue='function_name')
@@ -762,6 +764,8 @@ class IOFrame:
         
         plt.xlabel('time (s)')
         plt.ylabel('rank')
+        return fig, ax
+
 
     def byteTo(self, value, unit='auto'):
         if unit == 'auto':
@@ -792,16 +796,17 @@ class IOFrame:
         
         max = -1
         api = ''
-        interface['POSIX'] = interface['POSIX'] - 2 * interface['MPIIO'] # TODO: need a better way to exclude POSIX calls from MPIIO
+        if 'MPIIO' in interface:
+            interface['POSIX'] = interface['POSIX'] - 2 * interface['MPIIO'] # TODO: need a better way to exclude POSIX calls from MPIIO
 
-        for i in range(len(interface)):
-            if interface[i] > max and interface.index[i] != 'Not IO':
-                max = interface[i]
-                api = interface.index[i]
+        for key in interface.keys():
+            if interface[key] > max and key != 'not I/O':
+                max = interface[key]
+                api = key
         return api
 
     def getTransferSize(self):
-        df = self.dataframe[self.dataframe.apply(lambda x: IOFrame.is_keep(x['file_name']), axis = 1)]
+        df = self.dataframe[self.dataframe.apply(lambda x: IOFrame.is_keep(x['file_name']) and (x['io_volume'] > 0), axis = 1)]
 
         transferSize = df['io_volume'].mean()
         return self.byteTo(transferSize)
@@ -833,8 +838,74 @@ class IOFrame:
         print(num_write)
         return count / num_write > 0.5
 
+    def isFsync(self):
+        count = 0
+        df = self.dataframe[self.dataframe.apply(lambda x: IOFrame.is_keep(x['file_name']), axis = 1)]
+        df = df[~df['function_name'].str.contains('MPI')]
+        df = df[~df['function_name'].str.contains('HDF5')]
+
+        for name, grp in df.groupby('rank'):
+            prevRow = None
+            for index, row in grp.iterrows():
+                if prevRow is not None:
+                    if 'close' in prevRow['function_name'] and (row['function_name'] == 'fsync'):
+                        count += 1
+                prevRow = row
+        
+        num_close = len(df[df['function_name'].str.contains('close')])
+        print(count)
+        print(num_close)
+        return count / num_close > 0.5
+
+    def isUseFileView(self):
+        functions = self.dataframe['function_name'].unique()
+        if 'MPI_File_set_view' in functions:
+            return True
+        else:
+            return False
+
     def isFilePerProc(self):
-        return self.is_shared_io()
+        return not self.is_shared_io()
+
+    def addFileDirectory(self):
+        def getDirectory(x):
+            if x is None:
+                return None
+            if x != x:
+                return None
+            return x.rsplit('/', 1)[0]
+
+        self.dataframe['directory'] = self.dataframe.apply(lambda x: getDirectory(x['file_name']), axis=1)
+        return self.dataframe
+    
+    def shared_directories(self, dropna: Optional[bool]=False):
+        """
+        Organize shared directory information to a dataframe. Besides num of access, io_volume, time spent, include number
+        of ranks that share the file
+        
+        Args:
+
+        Return:
+            A multi-index dataframe containing information of a file shared by some ranks for all files.
+
+        """
+        if 'directory' not in self.dataframe.columns:
+            self.addFileDirectory()
+
+        dataframe = self.groupby_aggregate(['directory', 'I/O_type'], agg_dict={'rank': 'unique', 'function_name': 'count', 'io_volume': np.sum}, drop=True, dropna=dropna)
+        dataframe = dataframe.rename(columns={'function_name': 'file_access_count'})
+        dataframe = dataframe.rename(columns={'rank': 'shared_ranks'})
+        dataframe['num_ranks'] = dataframe.apply(lambda x: len(x.shared_ranks), axis=1)
+        return dataframe
+
+    def isUniqueDir(self):
+        shared_directories = self.shared_directories(dropna=True)
+        shared_directories = shared_directories.reset_index()
+        shared_directories = shared_directories[shared_directories.apply(lambda x: IOFrame.is_keep(x['directory']), axis = 1)]
+        if shared_directories['num_ranks'].max() > 1:
+            return False
+        else:
+            return True
 
     def accessPattern(self, within_rank=False):
         rdwrdf = self.dataframe[(self.dataframe['I/O_type'] == 'read') | (self.dataframe['I/O_type'] == 'write')]
@@ -942,6 +1013,8 @@ class IOFrame:
                 'RAW': [],
                 'WAR': [],
                 'WAW': [],
+                'read': [],
+                'write': [],
             }
 
         for file_name in rdwrdf['file_name'].unique():
@@ -954,24 +1027,41 @@ class IOFrame:
                     RAW = 0
                     WAR = 0
                     WAW = 0
+                    read = 0
+                    write = 0
 
                     df = filedf[filedf['rank'] == rank]
                     prevRow = None
                     for index, row in df.iterrows():
                         if prevRow is None:
                             prevRow = row
+                            if prevRow['I/O_type'] == 'read':
+                                read += prevRow['io_volume']
+                            else:
+                                write += prevRow['io_volume']
                             continue
+
                         offset1, offset2 = prevRow['offset'], row['offset']
                         ioVolume1, ioVolume2 = prevRow['io_volume'], row['io_volume']
+
+                        if row['I/O_type'] == 'read':
+                            read += ioVolume2
+                        else:
+                            write += ioVolume2
+                            
                         if offset1 + ioVolume1 > offset2:
-                            if prevRow['I/O_type'] == 'read' and prevRow['I/O_type'] == 'read':
-                                RAR += 1
-                            elif prevRow['I/O_type'] == 'read' and prevRow['I/O_type'] == 'write':
-                                RAW += 1
-                            elif prevRow['I/O_type'] == 'write' and prevRow['I/O_type'] == 'read':
-                                WAR += 1
-                            elif prevRow['I/O_type'] == 'write' and prevRow['I/O_type'] == 'write':
-                                WAW += 1
+                            if row['I/O_type'] == 'read' and prevRow['I/O_type'] == 'read':
+                                RAR += offset1 + ioVolume1 - offset2
+                                read += row['io_volume']
+                            elif row['I/O_type'] == 'read' and prevRow['I/O_type'] == 'write':
+                                RAW += offset1 + ioVolume1 - offset2
+                                read += row['io_volume']
+                            elif row['I/O_type'] == 'write' and prevRow['I/O_type'] == 'read':
+                                WAR += offset1 + ioVolume1 - offset2
+                                write += row['io_volume']
+                            elif row['I/O_type'] == 'write' and prevRow['I/O_type'] == 'write':
+                                WAW += offset1 + ioVolume1 - offset2
+                                write += row['io_volume']
                         
                         prevRow = row
 
@@ -981,28 +1071,43 @@ class IOFrame:
                     result['RAW'].append(RAW)
                     result['WAR'].append(WAR)
                     result['WAW'].append(WAW)
+                    result['read'].append(read)
+                    result['write'].append(write)
             else:
                 RAR = 0
                 RAW = 0
                 WAR = 0
                 WAW = 0
+                read = 0
+                write = 0
 
                 prevRow = None
                 for index, row in filedf.iterrows():
                     if prevRow is None:
                         prevRow = row
+                        if prevRow['I/O_type'] == 'read':
+                            read += prevRow['io_volume']
+                        else:
+                            write += prevRow['io_volume']
                         continue
+                    
                     offset1, offset2 = prevRow['offset'], row['offset']
                     ioVolume1, ioVolume2 = prevRow['io_volume'], row['io_volume']
+                    
+                    if row['I/O_type'] == 'read':
+                        read += ioVolume2
+                    else:
+                        write += ioVolume2
+
                     if offset1 + ioVolume1 > offset2:
-                        if prevRow['I/O_type'] == 'read' and prevRow['I/O_type'] == 'read':
-                            RAR += 1
-                        elif prevRow['I/O_type'] == 'read' and prevRow['I/O_type'] == 'write':
-                            RAW += 1
-                        elif prevRow['I/O_type'] == 'write' and prevRow['I/O_type'] == 'read':
-                            WAR += 1
-                        elif prevRow['I/O_type'] == 'write' and prevRow['I/O_type'] == 'write':
-                            WAW += 1
+                        if row['I/O_type'] == 'read' and prevRow['I/O_type'] == 'read':
+                            RAR += offset1 + ioVolume1 - offset2
+                        elif row['I/O_type'] == 'read' and prevRow['I/O_type'] == 'write':
+                            RAW += offset1 + ioVolume1 - offset2
+                        elif row['I/O_type'] == 'write' and prevRow['I/O_type'] == 'read':
+                            WAR += offset1 + ioVolume1 - offset2
+                        elif row['I/O_type'] == 'write' and prevRow['I/O_type'] == 'write':
+                            WAW += offset1 + ioVolume1 - offset2
                     
                     prevRow = row
 
@@ -1011,10 +1116,46 @@ class IOFrame:
                 result['RAW'].append(RAW)
                 result['WAR'].append(WAR)
                 result['WAW'].append(WAW)
+                result['read'].append(read)
+                result['write'].append(write)
 
         result = pd.DataFrame.from_dict(result)
+
         if within_rank:
             result = result.groupby(['file_name', 'rank']).sum()
         else:
             result.set_index('file_name', inplace=True)
         return result
+
+    def getReadWritePattern(self):
+        df = self.readWritePattern()
+        df['RAR'] = df['RAR'] / df['read']
+        df['RAW'] = df['RAW'] / df['read']
+        df['WAR'] = df['WAR'] / df['write']
+        df['WAW'] = df['WAW'] / df['write']
+        df['total'] = df['read'] + df['write']
+        df['read'] = df['read'] / df['total']
+        df['write'] = df['write'] / df['total']
+        RAR = 1 if df['RAR'].mean() > 0.3 else 0
+        RAW = 1 if df['RAW'].mean() > 0.3 else 0
+        WAR = 1 if df['WAR'].mean() > 0.3 else 0
+        WAW = 1 if df['WAW'].mean() > 0.3 else 0
+        read = 0
+        write = 0
+        result = {}
+        result['RAR'] = RAR
+        result['RAW'] = RAW
+        result['WAR'] = WAR
+        result['WAW'] = WAW
+
+        if not RAR and not RAW and not WAR and not WAW:
+            read = 1 if df['read'].mean() > 0.3 else 0
+            write = 1 if df['write'].mean() > 0.3 else 0
+        
+        result['read-unseen-file'] = read
+        result['write-from-scratch'] = write
+
+        return result
+            
+
+
