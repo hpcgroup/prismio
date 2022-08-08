@@ -351,11 +351,11 @@ class IOFrame:
         
         # groupby I/O_interface name and rank, then count the number of functions in each I/O_interface
         if rank_major:
-            dataframe = self.groupby_aggregate(['rank', 'I/O_interface'], rank=rank, agg_dict={'I/O_interface': 'count'}, filter=filter, drop=True, dropna=dropna)
+            dataframe = self.groupby_aggregate(['rank', 'I/O_interface'], rank=rank, agg_dict={'I/O_interface': 'count'}, filter=lambda x: filter(x) and (x['I/O_type'] == 'read' or x['I/O_type'] == 'write'), drop=True, dropna=dropna)
         else:
             dataframe = self.groupby_aggregate(['I/O_interface', 'rank'], rank=rank, agg_dict={'I/O_interface': 'count'}, filter=filter, drop=True, dropna=dropna)
         # drop the new column to maintain the original dataframe
-        self.dataframe.drop(['I/O_interface'], axis=1, inplace=True)
+        # self.dataframe.drop(['I/O_interface'], axis=1, inplace=True)
         
         dataframe = dataframe.rename(columns={'I/O_interface': 'I/O_interface_count'})
         
@@ -792,7 +792,8 @@ class IOFrame:
         return str(value) + ' ' + unit
 
     def getAPI(self):
-        interface = self.dataframe.groupby('I/O_interface')['function_name'].count()
+        dataframe = self.dataframe[(self.dataframe['I/O_type'] == 're ad') | (self.dataframe['I/O_type'] == 'write')].copy()
+        interface = dataframe.groupby('I/O_interface')['function_name'].count()
         
         if 'MPIIO' in interface:
             interface['POSIX'] = interface['POSIX'] - interface['MPIIO'] # TODO: need a better way to exclude POSIX calls from MPIIO
@@ -804,6 +805,7 @@ class IOFrame:
             interface['HDF5'] = 0
 
         total = 0
+
 
         for key in interface.keys():
             if key != 'not I/O':
@@ -818,6 +820,8 @@ class IOFrame:
         df = self.dataframe[self.dataframe.apply(lambda x: IOFrame.is_keep(x['file_name']) and (x['io_volume'] > 0), axis = 1)]
 
         transferSize = df['io_volume'].mean()
+        if transferSize is None or transferSize != transferSize:
+            return 0
         return transferSize
 
     def isCollective(self):
@@ -843,6 +847,8 @@ class IOFrame:
                 prevRow = row
         
         num_write = len(df[df['function_name'].str.contains('write')])
+        if num_write == 0:
+            return 0
         return 1 if count / num_write > 0.5 else 0
 
     def isFsync(self):
@@ -860,6 +866,8 @@ class IOFrame:
                 prevRow = row
         
         num_close = len(df[df['function_name'].str.contains('close')])
+        if num_close == 0:
+            return 0
         return 1 if count / num_close > 0.5 else 0
 
     def isUseFileView(self):
@@ -897,7 +905,7 @@ class IOFrame:
         if 'directory' not in self.dataframe.columns:
             self.addFileDirectory()
 
-        dataframe = self.groupby_aggregate(['directory', 'I/O_type'], agg_dict={'rank': 'unique', 'function_name': 'count', 'io_volume': np.sum}, drop=True, dropna=dropna)
+        dataframe = self.groupby_aggregate(['directory'], agg_dict={'rank': 'unique', 'function_name': 'count', 'io_volume': np.sum}, drop=True, dropna=dropna)
         dataframe = dataframe.rename(columns={'function_name': 'file_access_count'})
         dataframe = dataframe.rename(columns={'rank': 'shared_ranks'})
         dataframe['num_ranks'] = dataframe.apply(lambda x: len(x.shared_ranks), axis=1)
@@ -1009,6 +1017,8 @@ class IOFrame:
                 'RAW': [],
                 'WAR': [],
                 'WAW': [],
+                'read': [],
+                'write': [],
             }
             num_ranks = rdwrdf['rank'].nunique()
         else:
@@ -1046,27 +1056,35 @@ class IOFrame:
                                 write += prevRow['io_volume']
                             continue
 
-                        offset1, offset2 = prevRow['offset'], row['offset']
+                        offset11, offset21 = prevRow['offset'], row['offset']
                         ioVolume1, ioVolume2 = prevRow['io_volume'], row['io_volume']
-
+                        offset12 = offset11 + ioVolume1
+                        offset22 = offset21 + ioVolume2
+                    
                         if row['I/O_type'] == 'read':
                             read += ioVolume2
                         else:
                             write += ioVolume2
-                            
-                        if offset1 + ioVolume1 > offset2:
-                            if row['I/O_type'] == 'read' and prevRow['I/O_type'] == 'read':
-                                RAR += offset1 + ioVolume1 - offset2
-                                read += row['io_volume']
-                            elif row['I/O_type'] == 'read' and prevRow['I/O_type'] == 'write':
-                                RAW += offset1 + ioVolume1 - offset2
-                                read += row['io_volume']
-                            elif row['I/O_type'] == 'write' and prevRow['I/O_type'] == 'read':
-                                WAR += offset1 + ioVolume1 - offset2
-                                write += row['io_volume']
-                            elif row['I/O_type'] == 'write' and prevRow['I/O_type'] == 'write':
-                                WAW += offset1 + ioVolume1 - offset2
-                                write += row['io_volume']
+
+                        if (offset21 > offset11 and offset21 < offset12 and offset22 > offset12):
+                            overlap = offset12 - offset21
+                        elif (offset21 < offset11 and offset22 < offset12 and offset22 > offset11):
+                            overlap = offset22 - offset11
+                        elif (offset21 < offset11 and offset22 > offset12):
+                            overlap = ioVolume1
+                        elif (offset11 < offset21 and offset12 > offset22):
+                            overlap = ioVolume2
+                        else:
+                            overlap = 0
+
+                        if row['I/O_type'] == 'read' and prevRow['I/O_type'] == 'read':
+                            RAR += overlap
+                        elif row['I/O_type'] == 'read' and prevRow['I/O_type'] == 'write':
+                            RAW += overlap
+                        elif row['I/O_type'] == 'write' and prevRow['I/O_type'] == 'read':
+                            WAR += overlap
+                        elif row['I/O_type'] == 'write' and prevRow['I/O_type'] == 'write':
+                            WAW += overlap
                         
                         prevRow = row
 
@@ -1096,24 +1114,36 @@ class IOFrame:
                             write += prevRow['io_volume']
                         continue
                     
-                    offset1, offset2 = prevRow['offset'], row['offset']
+                    offset11, offset21 = prevRow['offset'], row['offset']
                     ioVolume1, ioVolume2 = prevRow['io_volume'], row['io_volume']
+                    offset12 = offset11 + ioVolume1
+                    offset22 = offset21 + ioVolume2
                     
                     if row['I/O_type'] == 'read':
                         read += ioVolume2
                     else:
                         write += ioVolume2
 
-                    if offset1 + ioVolume1 > offset2:
-                        if row['I/O_type'] == 'read' and prevRow['I/O_type'] == 'read':
-                            RAR += offset1 + ioVolume1 - offset2
-                        elif row['I/O_type'] == 'read' and prevRow['I/O_type'] == 'write':
-                            RAW += offset1 + ioVolume1 - offset2
-                        elif row['I/O_type'] == 'write' and prevRow['I/O_type'] == 'read':
-                            WAR += offset1 + ioVolume1 - offset2
-                        elif row['I/O_type'] == 'write' and prevRow['I/O_type'] == 'write':
-                            WAW += offset1 + ioVolume1 - offset2
-                    
+                    if (offset21 > offset11 and offset21 < offset12 and offset22 > offset12):
+                        overlap = offset12 - offset21
+                    elif (offset21 < offset11 and offset22 < offset12 and offset22 > offset11):
+                        overlap = offset22 - offset11
+                    elif (offset21 < offset11 and offset22 > offset12):
+                        overlap = ioVolume1
+                    elif (offset11 < offset21 and offset12 > offset22):
+                        overlap = ioVolume2
+                    else:
+                        overlap = 0
+
+                    if row['I/O_type'] == 'read' and prevRow['I/O_type'] == 'read':
+                        RAR += overlap
+                    elif row['I/O_type'] == 'read' and prevRow['I/O_type'] == 'write':
+                        RAW += overlap
+                    elif row['I/O_type'] == 'write' and prevRow['I/O_type'] == 'read':
+                        WAR += overlap
+                    elif row['I/O_type'] == 'write' and prevRow['I/O_type'] == 'write':
+                        WAW += overlap
+
                     prevRow = row
 
                 result['file_name'].append(file_name)
