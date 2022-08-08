@@ -430,11 +430,19 @@ class RecorderReader:
         fd_to_filenames = [{0: "stdin", 1: "stdout", 2: "stderr"} for _ in range(self.reader.GM.total_ranks)]
         fd_offsets = [{0: 0, 1: 0, 2: 0} for _ in range(self.reader.GM.total_ranks)]
         end_of_files = {"stdin": 0, "stdout": 0, "stderr": 0}
+
+        fh_to_filenames_mpi = [{0: "stdin", 1: "stdout", 2: "stderr"} for _ in range(self.reader.GM.total_ranks)]
+        fh_offsets_mpi = [{0: 0, 1: 0, 2: 0} for _ in range(self.reader.GM.total_ranks)]
+        end_of_files_mpi = {"stdin": 0, "stdout": 0, "stderr": 0}
         
         for record in all_records:
             rank = record.rank
             fd_to_filename = fd_to_filenames[rank]
             fd_offset = fd_offsets[rank]
+
+            fh_to_filename_mpi = fh_to_filenames_mpi[rank]
+            fh_offset_mpi = fh_offsets_mpi[rank]
+
             func_name = self.reader.funcs[record.func_id]
             '''
                 File "/Users/henryxu/Desktop/Research/prismio/prismio/readers/recorder_reader.py", line 216, in read
@@ -472,13 +480,40 @@ class RecorderReader:
                 
             if error == 1:
                 pass
-            elif 'MPI' in func_name or 'H5' in func_name:
+            elif 'H5' in func_name:
                 pass
+
+            elif 'MPI' in func_name:
+                if 'open' in func_name:
+                    fh = function_args[4]
+                    filename = function_args[1]
+                    fh_to_filename_mpi[fh] = filename
+                elif 'close' in func_name:
+                    fh = int(function_args[0])
+                    if fh not in fh_to_filename_mpi:
+                        filename = '__unknown__'
+                        error = "Error: MPI_File_close a non-existing MPI file handle (no open returns this MPI file handle or already closed)"
+                        print(error)
+                    else: 
+                        filename = fd_to_filename[fd]
+                        del fh_to_filename_mpi[fd]
+                        del fd_offset[fd]
+                elif func_name in MPI_IO_functions:
+                    fh = function_args[0]
+                    if fh not in fh_to_filename_mpi:
+                        error = "Error: MPIIO on a non-existing MPI file handle (no previous MPI_File_open returns this MPI file handle or already closed)"
+                        print(error)
+                        filename = '__unknown__'
+                    else:
+                        filename = fh_to_filename_mpi[fh]
+                else:
+                    pass
+
             elif 'fdopen' in func_name:
                 fd = record.res
                 old_fd = int(function_args[0])
                 if old_fd not in fd_to_filename:
-                    error = "Error: fdopen a non-existing file descriptor (no previous open returns this file descriptor or already closed)"
+                    error = "Error: fdopen a non-existing file descriptor (no open returns this file descriptor or already closed)"
                     print(error)
                     filename = '__unknown__'
                 else:
