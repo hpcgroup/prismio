@@ -795,6 +795,8 @@ class IOFrame:
         dataframe = self.dataframe[(self.dataframe['I/O_type'] == 're ad') | (self.dataframe['I/O_type'] == 'write')].copy()
         interface = dataframe.groupby('I/O_interface')['function_name'].count()
         
+        if 'POSIX' not in interface:
+            interface['POSIX'] = 0
         if 'MPIIO' in interface:
             interface['POSIX'] = interface['POSIX'] - interface['MPIIO'] # TODO: need a better way to exclude POSIX calls from MPIIO
         else:

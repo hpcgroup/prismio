@@ -489,15 +489,14 @@ class RecorderReader:
                     filename = function_args[1]
                     fh_to_filename_mpi[fh] = filename
                 elif 'close' in func_name:
-                    fh = int(function_args[0])
+                    fh = function_args[0]
                     if fh not in fh_to_filename_mpi:
                         filename = '__unknown__'
                         error = "Error: MPI_File_close a non-existing MPI file handle (no open returns this MPI file handle or already closed)"
                         print(error)
                     else: 
-                        filename = fd_to_filename[fd]
-                        del fh_to_filename_mpi[fd]
-                        del fd_offset[fd]
+                        filename = fh_to_filename_mpi[fh]
+                        del fh_to_filename_mpi[fh]
                 elif func_name in MPI_IO_functions:
                     fh = function_args[0]
                     if fh not in fh_to_filename_mpi:
